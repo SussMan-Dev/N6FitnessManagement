@@ -1,0 +1,28 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+.idea/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+src/GymManagement.Api/appsettings.Development.json
+
+# ASP.NET Core Data Protection keys
+src/GymManagement.Api/.data-protection-keys/
+
+# Frontend dependencies and generated assets
+node_modules/
+src/GymManagement.Web/dist/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Test results, coverage, and logs
+TestResults/
+coverage/
+*.trx
+*.log

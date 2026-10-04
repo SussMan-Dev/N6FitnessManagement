@@ -1,0 +1,1 @@
+.transaction-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:18px}.transaction-grid .panel{padding:20px}.transaction-list{overflow:auto}select{width:100%;padding:10px 11px;border:1px solid #40536f;border-radius:8px;color:#eef4fc;background:#101b2b;font:inherit}@media(max-width:900px){.transaction-grid{grid-template-columns:1fr}}
