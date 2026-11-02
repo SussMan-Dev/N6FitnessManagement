@@ -6,18 +6,21 @@ import {
   BarChart3,
   CreditCard,
   Dumbbell,
+  ExternalLink,
   FileText,
+  Globe,
   LayoutDashboard,
   LogOut,
   Menu,
   Repeat2,
   ScanLine,
   ShieldCheck,
+  Sparkles,
   Users,
   UserRoundCog,
   X,
 } from 'lucide-react';
-import { BrowserRouter, NavLink, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Link, NavLink, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { api, clearSession, getSession, saveSession } from './api';
 import {
   CheckInsPage,
@@ -29,6 +32,12 @@ import {
   StaffPage,
   SubscriptionsPage,
 } from './pages';
+import {
+  PortalLayout,
+  PortalLookupPage,
+  PortalPlansPage,
+  PortalRegisterPage,
+} from './portal';
 import './styles.css';
 
 const navigation = [
@@ -99,7 +108,15 @@ function LoginPage({ onLogin }) {
             {busy ? <span className="spinner" /> : <ShieldCheck size={17} />}
             {busy ? 'Đang xác thực…' : 'Vào hệ thống'}
           </button>
-          <p className="login-hint">Không có tài khoản? Liên hệ quản trị viên để được cấp quyền truy cập.</p>
+
+          <div className="login-portal-promo">
+            <span>Dành cho khách hàng / hội viên:</span>
+            <Link to="/portal" className="portal-promo-link">
+              <Sparkles size={15} /> Xem gói tập & Đăng ký online tại đây
+            </Link>
+          </div>
+
+          <p className="login-hint">Không có tài khoản nhân viên? Liên hệ quản trị viên để được cấp quyền.</p>
         </form>
       </section>
     </main>
@@ -124,6 +141,9 @@ function AppShell({ session, onLogout }) {
           {isAdmin && <NavLink to="/staff" onClick={() => setMobileNavOpen(false)}><UserRoundCog size={18} strokeWidth={1.8} /><span>Nhân viên</span></NavLink>}
         </nav>
         <div className="sidebar-bottom">
+          <Link to="/portal" target="_blank" rel="noreferrer" className="sidebar-portal-link">
+            <Globe size={16} /> Cổng khách hàng
+          </Link>
           <div className="sidebar-status"><span className="status-dot" /> HỆ THỐNG NỘI BỘ</div>
           <button className="logout-button" onClick={onLogout}><LogOut size={17} />Đăng xuất</button>
         </div>
@@ -135,8 +155,13 @@ function AppShell({ session, onLogout }) {
             {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <div className="topbar-context"><span className="topbar-kicker">FITNESS MANAGEMENT</span><span>Vận hành câu lạc bộ</span></div>
-          <div className="account-chip"><span className="avatar">{(session.email || 'S').slice(0, 1).toUpperCase()}</span><span className="account-copy"><strong>{session.email}</strong><small>{isAdmin ? 'Quản trị viên' : 'Nhân viên'}</small></span></div>
-          <button className="icon-button topbar-logout" onClick={onLogout} aria-label="Đăng xuất" title="Đăng xuất"><LogOut size={18} /></button>
+          <div className="topbar-right-actions">
+            <Link to="/portal" target="_blank" rel="noreferrer" className="topbar-portal-btn" title="Mở cổng khách hàng & đăng ký gói tập">
+              <Globe size={15} /> <span>Cổng khách hàng</span> <ExternalLink size={12} />
+            </Link>
+            <div className="account-chip"><span className="avatar">{(session.email || 'S').slice(0, 1).toUpperCase()}</span><span className="account-copy"><strong>{session.email}</strong><small>{isAdmin ? 'Quản trị viên' : 'Nhân viên'}</small></span></div>
+            <button className="icon-button topbar-logout" onClick={onLogout} aria-label="Đăng xuất" title="Đăng xuất"><LogOut size={18} /></button>
+          </div>
         </header>
         <main className="page-content"><Outlet /></main>
         <footer className="app-footer"><span>GYM MANAGER</span><span>Vận hành nội bộ · v1.0</span></footer>
@@ -189,7 +214,18 @@ function App() {
 
   return (
     <Routes>
+      {/* Public User Portal for membership plans & registration */}
+      <Route path="/portal" element={<PortalLayout />}>
+        <Route index element={<PortalPlansPage />} />
+        <Route path="plans" element={<PortalPlansPage />} />
+        <Route path="register" element={<PortalRegisterPage />} />
+        <Route path="lookup" element={<PortalLookupPage />} />
+      </Route>
+
+      {/* Staff Login */}
       <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginPage onLogin={setSession} />} />
+
+      {/* Internal Management App */}
       <Route element={<RequireSession session={session} />}>
         <Route element={<AppShell session={session} onLogout={logout} />}>
           <Route index element={<DashboardPage />} />
@@ -204,7 +240,9 @@ function App() {
           <Route path="staff" element={session?.roles?.includes('Admin') ? <StaffPage /> : <Navigate to="/" replace />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to={session ? '/' : '/login'} replace />} />
+
+      {/* Default fallback: If logged in go to dashboard, otherwise visit portal */}
+      <Route path="*" element={<Navigate to={session ? '/' : '/portal'} replace />} />
     </Routes>
   );
 }

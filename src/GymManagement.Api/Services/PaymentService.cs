@@ -27,11 +27,21 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
             return (null, PaymentError.InvoiceNotPayable);
         }
 
+        if (request.ReceiptFileId.HasValue)
+        {
+            var fileExists = await dbContext.StoredFiles.AnyAsync(f => f.Id == request.ReceiptFileId.Value, cancellationToken);
+            if (!fileExists)
+            {
+                return (null, PaymentError.FileNotFound);
+            }
+        }
+
         var payment = new Payment
         {
             InvoiceId = invoice.Id,
             Amount = request.Amount,
             Method = request.Method,
+            ReceiptFileId = request.ReceiptFileId,
             Status = PaymentStatus.PendingConfirmation,
             CreatedAtUtc = DateTime.UtcNow,
             CreatedByUserId = createdByUserId
@@ -162,6 +172,28 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
         return (ToResponse(payment), null);
     }
 
+    public async Task<(PaymentResponse? Payment, PaymentError? Error)> AttachReceiptAsync(
+        int paymentId,
+        int fileId,
+        CancellationToken cancellationToken)
+    {
+        var payment = await dbContext.Payments.SingleOrDefaultAsync(item => item.Id == paymentId, cancellationToken);
+        if (payment is null)
+        {
+            return (null, PaymentError.PaymentNotFound);
+        }
+
+        var fileExists = await dbContext.StoredFiles.AnyAsync(f => f.Id == fileId, cancellationToken);
+        if (!fileExists)
+        {
+            return (null, PaymentError.FileNotFound);
+        }
+
+        payment.ReceiptFileId = fileId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return (ToResponse(payment), null);
+    }
+
     public async Task<PaymentResponse?> GetByIdAsync(int id, CancellationToken cancellationToken)
     {
         var payment = await dbContext.Payments.AsNoTracking()
@@ -206,5 +238,6 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
         payment.CreatedByUserId,
         payment.ReviewedByUserId,
         payment.ReviewedAtUtc,
-        payment.AdjustmentReason);
+        payment.AdjustmentReason,
+        payment.ReceiptFileId);
 }

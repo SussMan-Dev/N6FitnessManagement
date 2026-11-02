@@ -10,6 +10,8 @@ public sealed class CreatePaymentRequest
 
     [EnumDataType(typeof(PaymentMethod))]
     public PaymentMethod Method { get; init; }
+
+    public int? ReceiptFileId { get; init; }
 }
 
 public sealed class ConfirmPaymentRequest
@@ -35,7 +37,8 @@ public sealed record PaymentResponse(
     int CreatedByUserId,
     int? ReviewedByUserId,
     DateTime? ReviewedAtUtc,
-    string? AdjustmentReason);
+    string? AdjustmentReason,
+    int? ReceiptFileId = null);
 
 public enum PaymentError
 {
@@ -47,5 +50,8 @@ public enum PaymentError
     TransferReferenceRequired,
     MemberNotActive,
     SubscriptionNotPendingPayment,
-    ConcurrentUpdate
+    ConcurrentUpdate,
+    FileNotFound,
+    InvalidFileFormat,
+    FileTooLarge
 }

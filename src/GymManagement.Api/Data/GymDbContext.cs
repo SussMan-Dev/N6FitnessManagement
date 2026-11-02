@@ -27,6 +27,8 @@ public sealed class GymDbContext(DbContextOptions<GymDbContext> options)
 
     public DbSet<Trainer> Trainers => Set<Trainer>();
 
+    public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -123,6 +125,10 @@ public sealed class GymDbContext(DbContextOptions<GymDbContext> options)
                 .WithMany()
                 .HasForeignKey(payment => payment.InvoiceId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(payment => payment.ReceiptFile)
+                .WithMany()
+                .HasForeignKey(payment => payment.ReceiptFileId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<CheckIn>(entity =>
@@ -148,6 +154,15 @@ public sealed class GymDbContext(DbContextOptions<GymDbContext> options)
             entity.Property(trainer => trainer.Specialty).HasMaxLength(120);
             entity.HasIndex(trainer => trainer.Email).IsUnique();
             entity.HasIndex(trainer => trainer.IsActive);
+        });
+
+        modelBuilder.Entity<StoredFile>(entity =>
+        {
+            entity.ToTable("StoredFiles");
+            entity.HasKey(file => file.Id);
+            entity.Property(file => file.FileName).HasMaxLength(255).IsRequired();
+            entity.Property(file => file.ContentType).HasMaxLength(100).IsRequired();
+            entity.Property(file => file.Content).IsRequired();
         });
     }
 }

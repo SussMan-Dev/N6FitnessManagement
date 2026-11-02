@@ -7,17 +7,21 @@ import {
   Check,
   CircleDollarSign,
   Clock3,
+  Download,
+  Eye,
+  Image,
   FilePlus2,
   Plus,
   RefreshCw,
   Repeat2,
   Search,
   ScanLine,
+  Upload,
   Users,
   UserPlus,
   X,
 } from 'lucide-react';
-import { api, dateInputValue, formatDate, formatMoney } from './api';
+import { api, dateInputValue, formatDate, formatMoney, uploadFile, uploadPaymentReceipt } from './api';
 
 export function Notice({ error, success }) {
   if (!error && !success) return null;
@@ -427,6 +431,7 @@ export function PaymentsPage() {
   const [invoiceId, setInvoiceId] = useState(params.get('invoiceId') || '');
   const [mode, setMode] = useState('');
   const [selected, setSelected] = useState(null);
+  const [previewReceipt, setPreviewReceipt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -445,14 +450,34 @@ export function PaymentsPage() {
 
   async function save(event) {
     event.preventDefault(); setSaving(true); setError(''); setSuccess('');
-    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const form = event.currentTarget;
+    const values = Object.fromEntries(new FormData(form));
     try {
       if (mode === 'create') {
-        await api(`/invoices/${values.invoiceId}/payments`, { method: 'POST', body: JSON.stringify({ amount: Number(values.amount), method: values.method }) });
+        let receiptFileId = null;
+        const fileInput = form.elements.receiptFile?.files?.[0];
+        if (fileInput) {
+          const uploadRes = await uploadFile(fileInput);
+          receiptFileId = uploadRes.id;
+        }
+        await api(`/invoices/${values.invoiceId}/payments`, { method: 'POST', body: JSON.stringify({ amount: Number(values.amount), method: values.method, receiptFileId }) });
         setSuccess('Đã ghi nhận khoản thanh toán chờ xác nhận.');
       } else if (mode === 'confirm') {
+        const fileInput = form.elements.receiptFile?.files?.[0];
+        if (fileInput) {
+          await uploadPaymentReceipt(selected.id, fileInput);
+        }
         await api(`/payments/${selected.id}/confirm`, { method: 'POST', body: JSON.stringify({ reference: values.reference || null }) });
         setSuccess('Đã xác nhận thu tiền và kích hoạt đăng ký.');
+      } else if (mode === 'uploadReceipt') {
+        const fileInput = form.elements.receiptFile?.files?.[0];
+        if (!fileInput) {
+          setError('Vui lòng chọn một tệp ảnh biên lai hoặc PDF.');
+          setSaving(false);
+          return;
+        }
+        await uploadPaymentReceipt(selected.id, fileInput);
+        setSuccess('Đã tải lên và gắn biên lai cho giao dịch thành công.');
       } else {
         await api(`/payments/${selected.id}/reject`, { method: 'POST', body: JSON.stringify({ reason: values.reason }) });
         setSuccess('Đã từ chối khoản thanh toán.');
@@ -473,22 +498,93 @@ export function PaymentsPage() {
       { key: 'method', label: 'Phương thức', render: item => item.method === 'BankTransfer' ? 'Chuyển khoản' : 'Tiền mặt' },
       { key: 'status', label: 'Trạng thái', render: item => <StatusBadge value={item.status} /> },
       { key: 'reference', label: 'Mã tham chiếu', render: item => item.reference || item.adjustmentReason || '—' },
+      { key: 'receipt', label: 'Biên lai', render: item => item.receiptFileId ? (
+        <button
+          className="button button-small button-quiet"
+          type="button"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          onClick={() => setPreviewReceipt({ fileId: item.receiptFileId, url: `/api/files/${item.receiptFileId}` })}
+        >
+          <Eye size={14} /> Xem bill
+        </button>
+      ) : (
+        <button
+          className="button button-small button-quiet"
+          type="button"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          onClick={() => { setError(''); setSelected(item); setMode('uploadReceipt'); }}
+        >
+          <Upload size={14} /> Tải bill
+        </button>
+      ) },
       { key: 'actions', label: 'Xử lý', render: item => item.status === 'PendingConfirmation' ? <div className="table-actions"><button className="button button-small button-primary" onClick={() => { setSelected(item); setMode('confirm'); }} type="button">Xác nhận</button><button className="button button-small button-danger-quiet" onClick={() => { setSelected(item); setMode('reject'); }} type="button">Từ chối</button></div> : <span className="muted">{item.reviewedByUserId ? `NV #${item.reviewedByUserId}` : '—'}</span> },
     ]} /></section>
-    {mode && <Modal title={mode === 'create' ? 'Ghi nhận thanh toán' : mode === 'confirm' ? 'Xác nhận đã thu tiền' : 'Từ chối thanh toán'} description={mode === 'confirm' ? 'Chỉ xác nhận sau khi đã kiểm tra tiền thực nhận.' : undefined} onClose={() => { setMode(''); setSelected(null); }}>
+    {mode && <Modal title={mode === 'create' ? 'Ghi nhận thanh toán' : mode === 'confirm' ? 'Xác nhận đã thu tiền' : mode === 'uploadReceipt' ? 'Tải lên biên lai chuyển khoản' : 'Từ chối thanh toán'} description={mode === 'confirm' ? 'Chỉ xác nhận sau khi đã kiểm tra tiền thực nhận và đối chiếu biên lai.' : undefined} onClose={() => { setMode(''); setSelected(null); }}>
       <form className="form-stack" onSubmit={save}>
         {mode === 'create' && <>
           <label className="field-label">Hóa đơn<select name="invoiceId" required defaultValue={invoiceId}><option value="">Chọn hóa đơn chờ thanh toán</option>{pendingInvoices.map(invoice => <option key={invoice.id} value={invoice.id}>{invoice.number} · {formatMoney(invoice.totalAmount)}</option>)}</select></label>
           <label className="field-label">Số tiền (VND)<input name="amount" type="number" min="0.01" step="1" required defaultValue={pendingInvoices.find(invoice => String(invoice.id) === String(invoiceId))?.totalAmount || ''} /></label>
-          <label className="field-label">Phương thức<select name="method" defaultValue="Cash"><option value="Cash">Tiền mặt</option><option value="BankTransfer">Chuyển khoản</option></select></label>
+          <label className="field-label">Phương thức<select name="method" defaultValue="BankTransfer"><option value="BankTransfer">Chuyển khoản</option><option value="Cash">Tiền mặt</option></select></label>
+          <label className="field-label">Ảnh biên lai chuyển khoản (tùy chọn)<input name="receiptFile" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" /></label>
         </>}
-        {mode === 'confirm' && <><p className="confirmation-amount">{formatMoney(selected?.amount)} <span>· {selected?.method === 'BankTransfer' ? 'Chuyển khoản' : 'Tiền mặt'}</span></p><label className="field-label">Mã giao dịch ngân hàng<input name="reference" maxLength="100" required={selected?.method === 'BankTransfer'} placeholder={selected?.method === 'BankTransfer' ? 'Bắt buộc với chuyển khoản' : 'Không bắt buộc'} /></label></>}
+        {mode === 'confirm' && <>
+          <p className="confirmation-amount">{formatMoney(selected?.amount)} <span>· {selected?.method === 'BankTransfer' ? 'Chuyển khoản' : 'Tiền mặt'}</span></p>
+          {selected?.receiptFileId ? (
+            <div style={{ margin: '10px 0', padding: '10px', background: 'var(--surface-subtle, #f8fafc)', borderRadius: '8px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+              <p style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '8px' }}>Ảnh biên lai đối chiếu:</p>
+              <a href={`/api/files/${selected.receiptFileId}`} target="_blank" rel="noreferrer" title="Bấm để xem ảnh lớn">
+                <img
+                  src={`/api/files/${selected.receiptFileId}`}
+                  alt="Biên lai đối chiếu"
+                  style={{ maxHeight: '180px', maxWidth: '100%', objectFit: 'contain', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                />
+              </a>
+            </div>
+          ) : (
+            <label className="field-label">Bổ sung ảnh biên lai chuyển khoản (tùy chọn)<input name="receiptFile" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" /></label>
+          )}
+          <label className="field-label">Mã giao dịch ngân hàng<input name="reference" maxLength="100" required={selected?.method === 'BankTransfer'} placeholder={selected?.method === 'BankTransfer' ? 'Bắt buộc với chuyển khoản' : 'Không bắt buộc'} /></label>
+        </>}
+        {mode === 'uploadReceipt' && <>
+          <p className="confirmation-amount">{formatMoney(selected?.amount)} <span>· PAY-{String(selected?.id).padStart(5, '0')}</span></p>
+          <label className="field-label">Chọn tệp biên lai chuyển khoản (JPG, PNG, WEBP, PDF - tối đa 5MB)<input name="receiptFile" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required /></label>
+        </>}
         {mode === 'reject' && <label className="field-label">Lý do từ chối<textarea name="reason" rows="4" required minLength="3" maxLength="500" /></label>}
         {mode === 'confirm' && <p className="form-helper">Xác nhận sẽ cập nhật hóa đơn và kích hoạt subscription trong cùng transaction.</p>}
         <Notice error={error} />
-        <div className="form-actions"><button className="button button-quiet" type="button" onClick={() => setMode('')}>Hủy</button><button className={`button ${mode === 'reject' ? 'button-danger' : 'button-primary'}`} disabled={saving}>{saving ? 'Đang xử lý…' : mode === 'confirm' ? 'Xác nhận đã thu' : mode === 'reject' ? 'Từ chối giao dịch' : 'Ghi nhận chờ xác nhận'}</button></div>
+        <div className="form-actions"><button className="button button-quiet" type="button" onClick={() => setMode('')}>Hủy</button><button className={`button ${mode === 'reject' ? 'button-danger' : 'button-primary'}`} disabled={saving}>{saving ? 'Đang xử lý…' : mode === 'confirm' ? 'Xác nhận đã thu' : mode === 'reject' ? 'Từ chối giao dịch' : mode === 'uploadReceipt' ? 'Tải lên biên lai' : 'Ghi nhận chờ xác nhận'}</button></div>
       </form>
     </Modal>}
+    {previewReceipt && (
+      <Modal title="Biên lai thanh toán" onClose={() => setPreviewReceipt(null)} wide>
+        <div style={{ textAlign: 'center', padding: '16px 0', minHeight: '220px' }}>
+          <img
+            src={previewReceipt.url}
+            alt="Biên lai thanh toán"
+            style={{ maxWidth: '100%', maxHeight: '480px', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--border-color, #e2e8f0)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const fallback = document.getElementById('receipt-fallback');
+              if (fallback) fallback.style.display = 'block';
+            }}
+          />
+          <div id="receipt-fallback" style={{ display: 'none', padding: '24px', background: 'var(--surface-subtle, #f8fafc)', borderRadius: '8px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+            <p style={{ marginBottom: '12px', fontWeight: 500 }}>Tệp biên lai không thể hiển thị trực tiếp (ví dụ: tệp PDF).</p>
+            <a className="button button-primary" href={previewReceipt.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Eye size={15} /> Mở xem trực tiếp trong tab mới
+            </a>
+          </div>
+        </div>
+        <div className="form-actions" style={{ marginTop: '16px' }}>
+          <a className="button button-quiet" href={`/api/files/${previewReceipt.fileId}/download`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Download size={15} /> Tải tệp về máy
+          </a>
+          <button className="button button-primary" type="button" onClick={() => setPreviewReceipt(null)}>
+            Đóng
+          </button>
+        </div>
+      </Modal>
+    )}
   </>;
 }
 

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GymManagement.Api.Controllers;
 
 [ApiController]
+// Authorization: both Admin and Staff tokens may use member operations.
 [Authorize(Roles = "Admin,Staff")]
 [Route("api/members")]
 public sealed class MembersController(IMemberService memberService) : ControllerBase

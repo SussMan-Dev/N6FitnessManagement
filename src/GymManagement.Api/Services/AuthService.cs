@@ -16,6 +16,7 @@ public sealed class AuthService(
 {
     public async Task<LoginResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
+        // 1. Authentication: locate an active user and verify the Identity password hash.
         cancellationToken.ThrowIfCancellationRequested();
         var email = request.Email.Trim();
         var user = await userManager.FindByEmailAsync(email);
@@ -39,19 +40,23 @@ public sealed class AuthService(
             ? "GymManagement.Client"
             : section["Audience"];
         var signingKey = section["SigningKey"]!;
+        // 2. Token lifetime comes from Jwt:AccessTokenMinutes (30 minutes by default).
         var expiresAt = DateTime.UtcNow.AddMinutes(section.GetValue("AccessTokenMinutes", 30));
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
             new(JwtRegisteredClaimNames.Email, user.Email ?? email),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.DisplayName)
+            new(ClaimTypes.Name, user.DisplayName),
+            new("security_stamp", user.SecurityStamp ?? string.Empty)
         };
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
             SecurityAlgorithms.HmacSha256);
+        // 3. JWT carries the user identity and roles; the API signs it with Jwt:SigningKey.
         var token = new JwtSecurityToken(
             issuer,
             audience,

@@ -184,7 +184,7 @@ namespace GymManagement.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<DateOnly?>("BirthDate")
+                    b.Property<DateTime?>("BirthDate")
                         .HasColumnType("date");
 
                     b.Property<string>("Email")
@@ -283,6 +283,9 @@ namespace GymManagement.Api.Data.Migrations
                         .HasMaxLength(24)
                         .HasColumnType("varchar(24)");
 
+                    b.Property<int?>("ReceiptFileId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Reference")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
@@ -304,9 +307,42 @@ namespace GymManagement.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ReceiptFileId");
+
                     b.HasIndex("InvoiceId", "Status");
 
                     b.ToTable("Payments", (string)null);
+                });
+
+            modelBuilder.Entity("GymManagement.Api.Models.StoredFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("longblob");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<long>("Length")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("StoredFiles", (string)null);
                 });
 
             modelBuilder.Entity("GymManagement.Api.Models.Subscription", b =>
@@ -318,7 +354,7 @@ namespace GymManagement.Api.Data.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateOnly?>("EndsOn")
+                    b.Property<DateTime?>("EndsOn")
                         .HasColumnType("date");
 
                     b.Property<int>("MemberId")
@@ -330,7 +366,7 @@ namespace GymManagement.Api.Data.Migrations
                     b.Property<int?>("RenewedFromSubscriptionId")
                         .HasColumnType("int");
 
-                    b.Property<DateOnly?>("StartsOn")
+                    b.Property<DateTime?>("StartsOn")
                         .HasColumnType("date");
 
                     b.Property<string>("Status")
@@ -547,6 +583,13 @@ namespace GymManagement.Api.Data.Migrations
                         .HasForeignKey("InvoiceId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("GymManagement.Api.Models.StoredFile", "ReceiptFile")
+                        .WithMany()
+                        .HasForeignKey("ReceiptFileId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ReceiptFile");
                 });
 
             modelBuilder.Entity("GymManagement.Api.Models.Subscription", b =>

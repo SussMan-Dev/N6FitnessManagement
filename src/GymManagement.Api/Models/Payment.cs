@@ -24,5 +24,9 @@ public sealed class Payment
 
     public string? AdjustmentReason { get; set; }
 
+    public int? ReceiptFileId { get; set; }
+
+    public StoredFile? ReceiptFile { get; set; }
+
     public int Version { get; set; }
 }

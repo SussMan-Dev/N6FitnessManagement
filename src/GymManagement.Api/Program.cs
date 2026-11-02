@@ -5,9 +5,11 @@ using GymManagement.Api.Models;
 using GymManagement.Api.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -50,6 +52,7 @@ var jwtIssuer = string.IsNullOrWhiteSpace(jwtSection["Issuer"])
 var jwtAudience = string.IsNullOrWhiteSpace(jwtSection["Audience"])
     ? "GymManagement.Client"
     : jwtSection["Audience"];
+// JWT lifetime: Jwt:AccessTokenMinutes in configuration; defaults to 30 minutes.
 var accessTokenMinutes = jwtSection.GetValue("AccessTokenMinutes", 30);
 if (accessTokenMinutes is < 1 or > 1440)
 {
@@ -61,7 +64,21 @@ builder.Services
     .AddJsonOptions(options =>
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    const string bearerScheme = "Bearer";
+    options.AddSecurityDefinition(bearerScheme, new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = bearerScheme,
+        BearerFormat = "JWT",
+        Description = "Enter a valid JWT access token."
+    });
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference(bearerScheme, document, null)] = []
+    });
+});
 builder.Services.AddDbContext<GymDbContext>(options => options.UseMySQL(connectionString));
 builder.Services.AddIdentityCore<GymUser>(options =>
     {
@@ -80,9 +97,11 @@ builder.Services.AddIdentityCore<GymUser>(options =>
     .AddSignInManager()
     .AddDefaultTokenProviders();
 builder.Services
+    // Authentication flow: read the Bearer token from the Authorization header.
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // Reject tokens with a wrong issuer, audience, signature, or expiry time.
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -96,13 +115,45 @@ builder.Services
             NameClaimType = System.Security.Claims.ClaimTypes.Name,
             RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                // A valid signature alone is insufficient: reject a token for a locked,
+                // inactive, deleted, or password-reset user.
+                var userIdValue = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var tokenSecurityStamp = context.Principal?.FindFirst("security_stamp")?.Value;
+                if (!int.TryParse(userIdValue, out var userId) || string.IsNullOrWhiteSpace(tokenSecurityStamp))
+                {
+                    context.Fail("The access token is missing required user information.");
+                    return;
+                }
+
+                var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<GymUser>>();
+                var user = await userManager.FindByIdAsync(userId.ToString());
+                if (user is null || !user.IsActive ||
+                    (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow) ||
+                    !string.Equals(user.SecurityStamp, tokenSecurityStamp, StringComparison.Ordinal))
+                {
+                    context.Fail("The access token is no longer valid.");
+                }
+            }
+        };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Authorization flow: new API endpoints are private unless they explicitly opt out
+    // with [AllowAnonymous]. [Authorize(Roles = ...)] additionally enforces roles.
+    options.FallbackPolicy = new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme)
+        .RequireAuthenticatedUser()
+        .Build();
+});
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<IMembershipPlanService, MembershipPlanService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<ICheckInService, CheckInService>();
 builder.Services.AddScoped<ITrainerService, TrainerService>();
 builder.Services.AddScoped<IReportService, ReportService>();

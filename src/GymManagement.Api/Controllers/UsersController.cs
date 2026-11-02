@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GymManagement.Api.Controllers;
 
 [ApiController]
+// Authorization: only an Admin token can manage staff accounts.
 [Authorize(Roles = "Admin")]
 [Route("api/users")]
 public sealed class UsersController(IUserManagementService userManagementService) : ControllerBase

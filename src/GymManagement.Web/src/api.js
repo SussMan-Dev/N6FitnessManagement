@@ -55,7 +55,7 @@ function readError(payload, status) {
 export async function api(path, options = {}) {
   const token = sessionStorage.getItem('token');
   const headers = new Headers(options.headers || {});
-  if (options.body && !headers.has('Content-Type')) {
+  if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
   if (token) headers.set('Authorization', `Bearer ${token}`);
@@ -67,7 +67,7 @@ export async function api(path, options = {}) {
     throw new ApiError('Không kết nối được API. Kiểm tra backend và proxy Vite đang chạy.');
   }
 
-  if (response.status === 401 && path !== '/auth/login') {
+  if (response.status === 401 && path !== '/auth/login' && !path.startsWith('/portal')) {
     clearSession();
     window.dispatchEvent(new Event('gym:session-expired'));
     throw new ApiError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 401);
@@ -99,4 +99,27 @@ export function formatMoney(value) {
 export function dateInputValue(date = new Date()) {
   const offset = date.getTimezoneOffset();
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10);
+}
+
+export async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append('File', file);
+  return api('/files/upload', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function uploadPaymentReceipt(paymentId, file) {
+  const formData = new FormData();
+  formData.append('File', file);
+  return api(`/payments/${paymentId}/receipt`, {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export function getFileUrl(fileId) {
+  if (!fileId) return null;
+  return `${API_ROOT}/files/${fileId}`;
 }

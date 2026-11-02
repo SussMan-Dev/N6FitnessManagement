@@ -23,6 +23,11 @@ public interface IPaymentService
         int reviewedByUserId,
         CancellationToken cancellationToken);
 
+    Task<(PaymentResponse? Payment, PaymentError? Error)> AttachReceiptAsync(
+        int paymentId,
+        int fileId,
+        CancellationToken cancellationToken);
+
     Task<PaymentResponse?> GetByIdAsync(int id, CancellationToken cancellationToken);
 
     Task<PagedResponse<PaymentResponse>> SearchAsync(
