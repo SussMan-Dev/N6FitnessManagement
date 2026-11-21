@@ -40,16 +40,32 @@ import {
 } from './portal';
 import './styles.css';
 
-const navigation = [
-  { to: '/', label: 'Tổng quan', icon: LayoutDashboard, end: true },
-  { to: '/members', label: 'Hội viên', icon: Users },
-  { to: '/plans', label: 'Gói tập', icon: BadgeDollarSign },
-  { to: '/subscriptions', label: 'Đăng ký tập', icon: Repeat2 },
-  { to: '/invoices', label: 'Hóa đơn', icon: FileText },
-  { to: '/payments', label: 'Thanh toán', icon: CreditCard },
-  { to: '/checkins', label: 'Check-in', icon: ScanLine },
-  { to: '/trainers', label: 'Huấn luyện viên', icon: Dumbbell },
-  { to: '/reports', label: 'Báo cáo', icon: BarChart3 },
+const navigationGroups = [
+  {
+    label: 'TỔNG QUAN',
+    items: [{ to: '/', label: 'Tổng quan', icon: LayoutDashboard, end: true }],
+  },
+  {
+    label: 'VẬN HÀNH',
+    items: [
+      { to: '/members', label: 'Hội viên', icon: Users },
+      { to: '/plans', label: 'Gói tập', icon: BadgeDollarSign },
+      { to: '/subscriptions', label: 'Đăng ký tập', icon: Repeat2 },
+      { to: '/checkins', label: 'Check-in', icon: ScanLine },
+      { to: '/trainers', label: 'Huấn luyện viên', icon: Dumbbell },
+    ],
+  },
+  {
+    label: 'THANH TOÁN',
+    items: [
+      { to: '/invoices', label: 'Hóa đơn', icon: FileText },
+      { to: '/payments', label: 'Thanh toán', icon: CreditCard },
+    ],
+  },
+  {
+    label: 'BÁO CÁO',
+    items: [{ to: '/reports', label: 'Báo cáo', icon: BarChart3 }],
+  },
 ];
 
 function LoginPage({ onLogin }) {
@@ -137,14 +153,23 @@ function AppShell({ session, onLogout }) {
     <div className="app-shell">
       <aside className={`sidebar ${mobileNavOpen ? 'sidebar-open' : ''}`}>
         <div className="brand sidebar-brand"><span className="brand-mark">G</span><span>GYM MANAGER<small>CLUB OPERATIONS</small></span></div>
-        <p className="nav-caption">WORKSPACE</p>
         <nav className="primary-nav" aria-label="Điều hướng chính">
-          {navigation.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} onClick={() => setMobileNavOpen(false)}>
-              <Icon size={18} strokeWidth={1.8} /><span>{label}</span>
-            </NavLink>
+          {navigationGroups.map(group => (
+            <div className="nav-group" key={group.label}>
+              <p className="nav-caption">{group.label}</p>
+              {group.items.map(({ to, label, icon: Icon, end }) => (
+                <NavLink key={to} to={to} end={end} onClick={() => setMobileNavOpen(false)}>
+                  <Icon size={18} strokeWidth={1.8} /><span>{label}</span>
+                </NavLink>
+              ))}
+            </div>
           ))}
-          {isAdmin && <NavLink to="/staff" onClick={() => setMobileNavOpen(false)}><UserRoundCog size={18} strokeWidth={1.8} /><span>Nhân viên</span></NavLink>}
+          {isAdmin && (
+            <div className="nav-group">
+              <p className="nav-caption">QUẢN TRỊ</p>
+              <NavLink to="/staff" onClick={() => setMobileNavOpen(false)}><UserRoundCog size={18} strokeWidth={1.8} /><span>Nhân viên</span></NavLink>
+            </div>
+          )}
         </nav>
         <div className="sidebar-bottom">
           <Link to="/portal" target="_blank" rel="noreferrer" className="sidebar-portal-link">
