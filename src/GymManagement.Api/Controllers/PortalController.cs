@@ -118,7 +118,7 @@ public sealed class PortalController(GymDbContext dbContext) : ControllerBase
 
         // 3. Create Subscription
         var startsOn = request.StartsOn ?? DateOnly.FromDateTime(now);
-        var endsOn = startsOn.AddDays(plan.DurationDays);
+        var endsOn = startsOn.AddDays(plan.DurationDays - 1);
 
         var subscription = new Subscription
         {

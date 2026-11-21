@@ -1,53 +1,96 @@
-# Hướng dẫn chạy Gym Management
+# Hướng dẫn chạy Gym Management trên Windows
 
-## 1. Bật MySQL
+## Yêu cầu
 
-Mở `services.msc`, tìm dịch vụ MySQL (thường là `MySQL80` hoặc `MySQL84`) và chọn **Start**. Kiểm tra cổng mặc định:
+- .NET 10 SDK
+- Node.js và npm
+- MySQL 8.0 trở lên
+
+## 1. Kiểm tra MySQL
+
+Mở PowerShell và kiểm tra MySQL đang chạy, cổng mặc định 3306 đã mở:
 
 ```powershell
+Get-Service MySQL*
 Test-NetConnection localhost -Port 3306
+``` 
+Tạo database một lần bằng MySQL Workbench hoặc MySQL client:
+
+```sql
+CREATE DATABASE FitnessManagement;
 ```
 
-Chỉ tiếp tục khi `TcpTestSucceeded` là `True`.
+Nếu đã có database thì không cần tạo lại. Đảm bảo user MySQL trong connection string ở bước tiếp theo có quyền truy cập database này.
 
-## 2. Cấu hình local
+## 2. Cấu hình API local
 
-Kiểm tra `src/GymManagement.Api/appsettings.Development.json` (file này đã được Git ignore). Cập nhật `DefaultConnection` theo MySQL local của bạn và tạo database `FitnessManagement` nếu chưa có.
-
-Để có tài khoản đăng nhập lần đầu, thêm vào cùng file:
+Tạo file `src/GymManagement.Api/appsettings.Development.json` (file này đã được Git ignore) với nội dung sau. Thay user/password MySQL và các giá trị mẫu bằng giá trị của bạn:
 
 ```json
-"BootstrapAdmin": {
-  "Email": "admin@example.com",
-  "Password": "MatKhauManh!123"
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Port=3306;Database=FitnessManagement;User ID=root;Password=<mat-khau-mysql>;"
+  },
+  "Jwt": {
+    "Issuer": "GymManagement.Api",
+    "Audience": "GymManagement.Client",
+    "AccessTokenMinutes": 30,
+    "SigningKey": "<chuoi-bi-mat-it-nhat-32-byte>"
+  },
+  "BootstrapAdmin": {
+    "Email": "admin@example.com",
+    "Password": "<mat-khau-admin-it-nhat-12-ky-tu>"
+  }
 }
 ```
 
-Không commit mật khẩu hoặc connection string thật. Tài khoản bootstrap sẽ được gán vai trò `Admin` khi API khởi động.
+`Jwt:SigningKey` phải dài ít nhất 32 byte UTF-8. Có thể tạo chuỗi ngẫu nhiên trong PowerShell:
 
-## 3. Chạy hệ thống
+```powershell
+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+Chép kết quả vào `SigningKey`. Mật khẩu bootstrap cần có ít nhất 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt. API sẽ tạo tài khoản Admin này khi khởi động lần đầu; sau đó đăng nhập bằng email và mật khẩu đã cấu hình.
+
+Không commit hoặc gửi cho người khác file local này, connection string, JWT signing key hay mật khẩu thật.
+
+## 3. Chạy backend
+
+Mở terminal PowerShell thứ nhất tại thư mục gốc repo (`D:\N6FitnessManagement`):
 
 ```powershell
 dotnet run --project src/GymManagement.Api/GymManagement.Api.csproj
 ```
 
-Trong môi trường `Development`, ứng dụng tự chạy migration; không cần dùng `dotnet ef database update` mỗi lần.
+Lần đầu chạy, API sẽ restore/build .NET packages, kết nối MySQL và tự áp dụng migration trong môi trường Development. Nếu thành công:
 
-- Frontend: `http://localhost:5187`
-- Swagger API: `http://localhost:5187/swagger`
+- API: `http://localhost:5187`
+- Swagger: `http://localhost:5187/swagger`
 
-Mã giao diện được đặt tại `src/GymManagement.Api/Frontend`:
+Giữ terminal này mở trong khi chạy frontend. Nếu lỗi kết nối database, kiểm tra service MySQL, tên database, username/password và quyền truy cập.
 
-- `index.html`: bố cục và các màn hình.
-- `css/site.css`: giao diện, màu sắc và responsive.
-- `js/app.js`: đăng nhập JWT và gọi API.
+## 4. Chạy frontend
 
-Đăng nhập frontend bằng tài khoản `BootstrapAdmin` đã cấu hình. Có thể chạy kiểm thử bằng:
+Mở terminal PowerShell thứ hai tại thư mục gốc repo:
+
+```powershell
+Push-Location src/GymManagement.Web
+npm ci
+npm run dev
+```
+
+Mở địa chỉ Vite hiển thị trong terminal, thường là `http://localhost:5173`. Frontend dùng proxy `/api` tới API tại `http://localhost:5187`, nên cần để backend tiếp tục chạy.
+
+Đăng nhập bằng tài khoản bootstrap đã cấu hình ở bước 2. Nếu cổng 5173 đã được dùng, Vite sẽ hiển thị cổng khác; dùng đúng URL được in trong terminal.
+
+## Dừng ứng dụng
+
+Nhấn `Ctrl+C` trong từng terminal để dừng backend và frontend.
+
+## Chạy kiểm thử backend
+
+Tại thư mục gốc repo:
 
 ```powershell
 dotnet test tests/GymManagement.Api.Tests/GymManagement.Api.Tests.csproj
 ```
-chạy backend: dotnet run --project src/GymManagement.Api/GymManagement.Api.csproj
-Chạy frontend: 
-cd cd src/GymManagement.Web
-npm.cmd run dev

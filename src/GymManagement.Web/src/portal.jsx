@@ -260,7 +260,7 @@ export function PortalPlansPage() {
                     className={`button button-wide ${isPopular || isVip ? 'button-primary' : 'button-secondary'}`}
                     onClick={() => navigate(`/portal/register?planId=${plan.id}`)}
                   >
-                    <span>Đăng ký gói này</span>
+                    <span>Chọn gói & bắt đầu đăng ký</span>
                     <ChevronRight size={17} />
                   </button>
                 </div>
@@ -381,7 +381,7 @@ export function PortalRegisterPage() {
     if (!startsOn || !selectedPlan) return null;
     try {
       const d = new Date(startsOn);
-      d.setDate(d.getDate() + selectedPlan.durationDays);
+      d.setDate(d.getDate() + Math.max(0, selectedPlan.durationDays - 1));
       return d;
     } catch {
       return null;
@@ -761,7 +761,7 @@ function PortalSuccessView({ data, onReset }) {
                     className="button button-secondary button-small"
                     onClick={() => copyText(data.bankAccountNumber, setCopiedBank)}
                   >
-                    <Copy size={13} /> {copiedBank ? 'Đã sao chép!' : 'Sao chép'}
+                    <Copy size={13} /> {copiedBank ? 'Đã sao chép số tài khoản' : 'Sao chép số tài khoản'}
                   </button>
                 </div>
               </div>
@@ -782,7 +782,7 @@ function PortalSuccessView({ data, onReset }) {
                     className="button button-secondary button-small"
                     onClick={() => copyText(data.transferContent, setCopiedContent)}
                   >
-                    <Copy size={13} /> {copiedContent ? 'Đã sao chép!' : 'Sao chép'}
+                    <Copy size={13} /> {copiedContent ? 'Đã sao chép nội dung CK' : 'Sao chép nội dung CK'}
                   </button>
                 </div>
               </div>
@@ -809,13 +809,13 @@ function PortalSuccessView({ data, onReset }) {
             className="button button-primary button-large"
             onClick={() => navigate(`/portal/lookup?query=${encodeURIComponent(data.phone)}`)}
           >
-            <Search size={18} /> Tra cứu trạng thái thẻ tập của bạn
+            <Search size={18} /> Xem tình trạng thẻ tập ngay
           </button>
           <button
             className="button button-secondary button-large"
             onClick={onReset}
           >
-            Đăng ký thêm gói khác
+Đăng ký gói tập khác
           </button>
         </div>
       </div>
@@ -915,7 +915,7 @@ export function PortalLookupPage() {
           </div>
           <button type="submit" className="button button-primary" disabled={loading}>
             {loading ? <span className="spinner" /> : <Search size={18} />}
-            <span>{loading ? 'Đang tra cứu…' : 'Tra cứu ngay'}</span>
+            <span>{loading ? 'Đang tra cứu thông tin…' : 'Tra cứu thẻ tập ngay'}</span>
           </button>
         </form>
       </div>

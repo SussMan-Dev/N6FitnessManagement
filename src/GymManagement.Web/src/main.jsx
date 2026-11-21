@@ -98,15 +98,15 @@ function LoginPage({ onLogin }) {
           <h2>Đăng nhập</h2>
           <p className="muted">Dùng tài khoản nhân viên do quản trị viên cấp.</p>
           <label className="field-label">Email
-            <input name="email" type="email" autoComplete="username" placeholder="ten@phongtap.vn" required maxLength={254} />
+            <input name="email" type="email" autoComplete="username" placeholder="Nhập email nhân viên, ví dụ ten@phongtap.vn" required maxLength={254} />
           </label>
           <label className="field-label">Mật khẩu
-            <input name="password" type="password" autoComplete="current-password" placeholder="Nhập mật khẩu" required minLength={12} maxLength={128} />
+            <input name="password" type="password" autoComplete="current-password" placeholder="Nhập mật khẩu tài khoản" required minLength={12} maxLength={128} />
           </label>
           {error && <div className="notice notice-error" role="alert">{error}</div>}
           <button className="button button-primary button-wide" type="submit" disabled={busy}>
             {busy ? <span className="spinner" /> : <ShieldCheck size={17} />}
-            {busy ? 'Đang xác thực…' : 'Vào hệ thống'}
+            {busy ? 'Đang xác thực thông tin…' : 'Đăng nhập vào hệ thống'}
           </button>
 
           <div className="login-portal-promo">
@@ -126,6 +126,12 @@ function LoginPage({ onLogin }) {
 function AppShell({ session, onLogout }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const isAdmin = session.roles?.includes('Admin');
+  const todayLabel = new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date());
 
   return (
     <div className="app-shell">
@@ -145,7 +151,7 @@ function AppShell({ session, onLogout }) {
             <Globe size={16} /> Cổng khách hàng
           </Link>
           <div className="sidebar-status"><span className="status-dot" /> HỆ THỐNG NỘI BỘ</div>
-          <button className="logout-button" onClick={onLogout}><LogOut size={17} />Đăng xuất</button>
+          <button className="logout-button" onClick={onLogout} title="Thoát khỏi tài khoản nhân viên"><LogOut size={17} />Thoát đăng nhập</button>
         </div>
       </aside>
       {mobileNavOpen && <button className="nav-backdrop" aria-label="Đóng menu" onClick={() => setMobileNavOpen(false)} />}
@@ -154,13 +160,13 @@ function AppShell({ session, onLogout }) {
           <button className="icon-button mobile-menu" aria-label="Mở menu" onClick={() => setMobileNavOpen(!mobileNavOpen)}>
             {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <div className="topbar-context"><span className="topbar-kicker">FITNESS MANAGEMENT</span><span>Vận hành câu lạc bộ</span></div>
+          <div className="topbar-context"><span className="topbar-kicker">FITNESS MANAGEMENT</span><span>{todayLabel}</span></div>
           <div className="topbar-right-actions">
             <Link to="/portal" target="_blank" rel="noreferrer" className="topbar-portal-btn" title="Mở cổng khách hàng & đăng ký gói tập">
               <Globe size={15} /> <span>Cổng khách hàng</span> <ExternalLink size={12} />
             </Link>
             <div className="account-chip"><span className="avatar">{(session.email || 'S').slice(0, 1).toUpperCase()}</span><span className="account-copy"><strong>{session.email}</strong><small>{isAdmin ? 'Quản trị viên' : 'Nhân viên'}</small></span></div>
-            <button className="icon-button topbar-logout" onClick={onLogout} aria-label="Đăng xuất" title="Đăng xuất"><LogOut size={18} /></button>
+            <button className="icon-button topbar-logout" onClick={onLogout} aria-label="Thoát đăng nhập" title="Thoát đăng nhập khỏi hệ thống"><LogOut size={18} /></button>
           </div>
         </header>
         <main className="page-content"><Outlet /></main>
@@ -187,7 +193,7 @@ class AppErrorBoundary extends React.Component {
 
   render() {
     if (this.state.failed) {
-      return <main className="render-fallback"><div><p className="eyebrow">WORKSPACE ERROR</p><h1>Không thể hiển thị trang.</h1><p>Đã ghi nhận lỗi giao diện. Tải lại trang để thử lại.</p>{import.meta.env.DEV && this.state.message && <pre className="render-error-detail">{this.state.message}</pre>}<button className="button button-primary" onClick={() => window.location.reload()}>Tải lại trang</button></div></main>;
+      return <main className="render-fallback"><div><p className="eyebrow">LỖI GIAO DIỆN</p><h1>Trang đang tạm thời không thể hiển thị.</h1><p>Vui lòng tải lại trang. Nếu lỗi còn tiếp diễn, hãy kiểm tra kết nối API hoặc liên hệ quản trị viên.</p>{import.meta.env.DEV && this.state.message && <pre className="render-error-detail">{this.state.message}</pre>}<button className="button button-primary" onClick={() => window.location.reload()}>Tải lại trang ngay</button></div></main>;
     }
     return this.props.children;
   }
