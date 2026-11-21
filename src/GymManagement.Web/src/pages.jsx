@@ -164,7 +164,7 @@ function ResourceDialog({ config, initial, onClose, onSave, saving, error }) {
           </label>
         ))}</div>
         <Notice error={error} />
-        <div className="form-actions"><button className="button button-quiet" type="button" onClick={onClose}>Hủy</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu thay đổi'}</button></div>
+        <div className="form-actions"><button className="button button-quiet" type="button" onClick={onClose}>Hủy thao tác</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Đang lưu thông tin…' : (initial ? 'Cập nhật thông tin' : `Thêm ${config.title.toLowerCase()}`)}</button></div>
       </form>
     </Modal>
   );
@@ -228,11 +228,11 @@ export function ResourcePage({ type }) {
 
   const columns = [
     ...config.columns,
-    { key: 'actions', label: 'Thao tác', render: item => <div className="table-actions"><button className="button button-small button-quiet" onClick={() => { setError(''); setModal({ item }); }} type="button">Sửa</button><button className="button button-small button-outline" onClick={() => toggleStatus(item)} type="button">{config.isActive(item) ? 'Tạm ngừng' : 'Kích hoạt'}</button></div> },
+    { key: 'actions', label: 'Thao tác', render: item => <div className="table-actions"><button className="button button-small button-quiet" onClick={() => { setError(''); setModal({ item }); }} type="button" title={`Chỉnh sửa ${config.title.toLowerCase()} này`}>Chỉnh sửa</button><button className="button button-small button-outline" onClick={() => toggleStatus(item)} type="button" title={config.isActive(item) ? `Tạm ngừng ${config.title.toLowerCase()} này` : `Kích hoạt ${config.title.toLowerCase()} này`}>{config.isActive(item) ? 'Tạm ngừng' : 'Kích hoạt lại'}</button></div> },
   ];
 
   return <>
-    <PageHeader eyebrow={config.eyebrow} title={config.title} description={config.description} action={<button className="button button-primary" onClick={() => { setError(''); setModal({ item: null }); }}><Plus size={17} />Thêm mới</button>} />
+    <PageHeader eyebrow={config.eyebrow} title={config.title} description={config.description} action={<button className="button button-primary" onClick={() => { setError(''); setModal({ item: null }); }}><Plus size={17} />{type === 'members' ? 'Thêm hội viên' : type === 'plans' ? 'Thêm gói tập' : 'Thêm huấn luyện viên'}</button>} />
     <Notice error={error} success={success} />
     <section className="table-panel">
       <div className="table-toolbar"><div><strong>{items.length}</strong><span> bản ghi</span></div><label className="search-field"><Search size={16} /><input aria-label="Tìm kiếm" placeholder={`Tìm ${config.title.toLowerCase()}…`} value={search} onChange={event => setSearch(event.target.value)} /></label></div>
@@ -266,7 +266,7 @@ export function DashboardPage() {
   ] : [];
 
   return <>
-    <PageHeader eyebrow="OVERVIEW · HÔM NAY" title="Tổng quan vận hành" description="Tình hình hội viên và hoạt động phòng tập." action={<button className="button button-quiet" onClick={() => setVersion(value => value + 1)}><RefreshCw size={16} />Làm mới</button>} />
+    <PageHeader eyebrow="OVERVIEW · HÔM NAY" title="Tổng quan vận hành" description="Theo dõi nhanh hội viên, gói tập, doanh thu và lượt check-in." action={<button className="button button-quiet" onClick={() => setVersion(value => value + 1)} title="Tải lại số liệu mới nhất"><RefreshCw size={16} />Cập nhật số liệu</button>} />
     <Notice error={error} />
     {loading ? <LoadingState /> : report ? <>
       <section className="metric-grid">{stats.map((stat, index) => <article className={`metric metric-${stat.accent}`} key={stat.label}><div className="metric-top"><span>{stat.label}</span><span className="metric-index">0{index + 1}</span></div><strong>{stat.value}</strong><small>THEO DỮ LIỆU HỆ THỐNG</small></article>)}</section>
@@ -354,7 +354,7 @@ export function SubscriptionsPage() {
         <label className="field-label">Hội viên<select name="memberId" required value={memberId} onChange={event => setMemberId(event.target.value)}><option value="">Chọn hội viên</option>{members.map(member => <option key={member.id} value={member.id}>{member.firstName} {member.lastName} · #{member.id}</option>)}</select></label>
         <label className="field-label">Gói tập<select name="membershipPlanId" required disabled={loadingOptions || !plans.length}><option value="">Chọn gói đang bán</option>{plans.map(plan => <option key={plan.id} value={plan.id}>{plan.name} · {formatMoney(plan.price)} / {plan.durationDays} ngày</option>)}</select></label>
         <p className="form-helper">Đăng ký mới ở trạng thái chờ thanh toán, chưa kích hoạt quyền check-in.</p>
-        <button className="button button-primary" type="submit" disabled={saving || loadingOptions || !members.length || !plans.length}><Plus size={17} />{saving ? 'Đang tạo…' : 'Tạo đăng ký'}</button>
+        <button className="button button-primary" type="submit" disabled={saving || loadingOptions || !members.length || !plans.length}><Plus size={17} />{saving ? 'Đang tạo đăng ký…' : 'Xác nhận tạo đăng ký'}</button>
       </form>
       <section className="work-panel">
         <div className="panel-heading"><div><p className="eyebrow">SUBSCRIPTION HISTORY</p><h2>{selectedName ? `${selectedName.firstName} ${selectedName.lastName}` : 'Chọn hội viên'}</h2></div><span className="panel-count">{items.length}</span></div>
@@ -363,7 +363,7 @@ export function SubscriptionsPage() {
           { key: 'plan', label: 'Gói', render: item => plans.find(plan => plan.id === item.membershipPlanId)?.name || `#${item.membershipPlanId}` },
           { key: 'period', label: 'Thời hạn', render: item => item.startsOn ? `${formatDate(item.startsOn)} – ${formatDate(item.endsOn)}` : 'Chưa kích hoạt' },
           { key: 'status', label: 'Trạng thái', render: item => <StatusBadge value={item.status} /> },
-          { key: 'actions', label: 'Thao tác', render: item => <div className="table-actions">{item.status === 'PendingPayment' && <button className="button button-small button-outline" onClick={() => createInvoice(item)} type="button">Tạo hóa đơn</button>}{['Active', 'Expired'].includes(item.status) && <button className="button button-small button-quiet" onClick={() => renew(item)} type="button">Gia hạn</button>}</div> },
+          { key: 'actions', label: 'Thao tác', render: item => <div className="table-actions">{item.status === 'PendingPayment' && <button className="button button-small button-outline" onClick={() => createInvoice(item)} type="button" title="Lập hóa đơn cho đăng ký đang chờ thanh toán">Lập hóa đơn</button>}{['Active', 'Expired'].includes(item.status) && <button className="button button-small button-quiet" onClick={() => renew(item)} type="button" title="Tạo đăng ký gia hạn mới">Gia hạn gói tập</button>}</div> },
         ]} />}
       </section>
     </section>
@@ -489,7 +489,7 @@ export function PaymentsPage() {
 
   const pendingInvoices = invoices.filter(invoice => invoice.status === 'PendingPayment');
   return <>
-    <PageHeader eyebrow="BILLING" title="Thanh toán nội bộ" description="Nhân viên kiểm tra và xác nhận tiền mặt hoặc chuyển khoản." action={<button className="button button-primary" onClick={() => { setError(''); setMode('create'); }}><Plus size={17} />Ghi nhận thanh toán</button>} />
+    <PageHeader eyebrow="BILLING" title="Thanh toán nội bộ" description="Kiểm tra giao dịch, đối chiếu biên lai và xác nhận tiền thực nhận." action={<button className="button button-primary" onClick={() => { setError(''); setMode('create'); }}><Plus size={17} />Ghi nhận khoản thanh toán</button>} />
     <Notice error={error} success={success} />
     <section className="table-panel"><div className="table-toolbar"><div><strong>{items.length}</strong><span> giao dịch</span></div><select className="filter-select" aria-label="Lọc hóa đơn" value={invoiceId} onChange={event => { setInvoiceId(event.target.value); setParams(event.target.value ? { invoiceId: event.target.value } : {}); }}><option value="">Tất cả hóa đơn</option>{invoices.map(invoice => <option key={invoice.id} value={invoice.id}>{invoice.number}</option>)}</select></div><TableFrame loading={loading} rows={items} emptyTitle="Chưa có giao dịch" emptyDescription="Ghi nhận thanh toán từ một hóa đơn đang chờ." columns={[
       { key: 'id', label: 'Giao dịch', render: item => <><strong>PAY-{String(item.id).padStart(5, '0')}</strong><small className="table-subline">{formatDate(item.createdAtUtc)}</small></> },
@@ -505,7 +505,7 @@ export function PaymentsPage() {
           style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           onClick={() => setPreviewReceipt({ fileId: item.receiptFileId, url: `/api/files/${item.receiptFileId}` })}
         >
-          <Eye size={14} /> Xem bill
+          <Eye size={14} /> Xem biên lai
         </button>
       ) : (
         <button
@@ -514,7 +514,7 @@ export function PaymentsPage() {
           style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           onClick={() => { setError(''); setSelected(item); setMode('uploadReceipt'); }}
         >
-          <Upload size={14} /> Tải bill
+          <Upload size={14} /> Tải biên lai
         </button>
       ) },
       { key: 'actions', label: 'Xử lý', render: item => item.status === 'PendingConfirmation' ? <div className="table-actions"><button className="button button-small button-primary" onClick={() => { setSelected(item); setMode('confirm'); }} type="button">Xác nhận</button><button className="button button-small button-danger-quiet" onClick={() => { setSelected(item); setMode('reject'); }} type="button">Từ chối</button></div> : <span className="muted">{item.reviewedByUserId ? `NV #${item.reviewedByUserId}` : '—'}</span> },
@@ -552,7 +552,7 @@ export function PaymentsPage() {
         {mode === 'reject' && <label className="field-label">Lý do từ chối<textarea name="reason" rows="4" required minLength="3" maxLength="500" /></label>}
         {mode === 'confirm' && <p className="form-helper">Xác nhận sẽ cập nhật hóa đơn và kích hoạt subscription trong cùng transaction.</p>}
         <Notice error={error} />
-        <div className="form-actions"><button className="button button-quiet" type="button" onClick={() => setMode('')}>Hủy</button><button className={`button ${mode === 'reject' ? 'button-danger' : 'button-primary'}`} disabled={saving}>{saving ? 'Đang xử lý…' : mode === 'confirm' ? 'Xác nhận đã thu' : mode === 'reject' ? 'Từ chối giao dịch' : mode === 'uploadReceipt' ? 'Tải lên biên lai' : 'Ghi nhận chờ xác nhận'}</button></div>
+        <div className="form-actions"><button className="button button-quiet" type="button" onClick={() => setMode('')}>Đóng cửa sổ</button><button className={`button ${mode === 'reject' ? 'button-danger' : 'button-primary'}`} disabled={saving}>{saving ? 'Đang xử lý…' : mode === 'confirm' ? 'Xác nhận đã nhận tiền' : mode === 'reject' ? 'Từ chối giao dịch này' : mode === 'uploadReceipt' ? 'Tải lên biên lai' : 'Lưu giao dịch chờ xác nhận'}</button></div>
       </form>
     </Modal>}
     {previewReceipt && (
@@ -624,11 +624,11 @@ export function CheckInsPage() {
 
   const selectedMember = members.find(member => String(member.id) === String(memberId));
   return <>
-    <PageHeader eyebrow="FLOOR OPERATIONS" title="Check-in" description="Chỉ hội viên có gói đang hiệu lực mới được ghi nhận lượt vào." />
+    <PageHeader eyebrow="FLOOR OPERATIONS" title="Check-in hội viên" description="Chọn hội viên để kiểm tra gói tập và ghi nhận lượt vào phòng tập." />
     <Notice error={error} success={success} />
     <section className="checkin-console">
       <div className="checkin-console-copy"><p className="eyebrow">MEMBER ENTRY</p><h2>Ghi nhận lượt vào.</h2><p>Hệ thống xác minh trạng thái hội viên và ngày hiệu lực subscription trước khi lưu.</p></div>
-      <div className="checkin-controls"><label className="field-label">Tìm hội viên<select value={memberId} onChange={event => setMemberId(event.target.value)}><option value="">Chọn hội viên</option>{members.map(member => <option key={member.id} value={member.id}>{member.firstName} {member.lastName} · #{member.id}</option>)}</select></label><button className="button button-primary button-checkin" disabled={!memberId || saving} onClick={checkIn}><ScanLine size={18} />{saving ? 'Đang ghi nhận…' : 'Ghi check-in'}</button>{selectedMember && <span className="form-helper">Đang chọn: {selectedMember.firstName} {selectedMember.lastName}</span>}</div>
+      <div className="checkin-controls"><label className="field-label">Tìm hội viên<select value={memberId} onChange={event => setMemberId(event.target.value)}><option value="">Chọn hội viên</option>{members.map(member => <option key={member.id} value={member.id}>{member.firstName} {member.lastName} · #{member.id}</option>)}</select></label><button className="button button-primary button-checkin" disabled={!memberId || saving} onClick={checkIn}><ScanLine size={18} />{saving ? 'Đang ghi nhận…' : 'Xác nhận check-in'}</button>{selectedMember && <span className="form-helper">Đang chọn: {selectedMember.firstName} {selectedMember.lastName}</span>}</div>
     </section>
     <section className="table-panel"><div className="table-toolbar"><div><p className="eyebrow">MEMBER HISTORY</p><h2>{selectedMember ? `${selectedMember.firstName} ${selectedMember.lastName}` : 'Lịch sử check-in'}</h2></div><span className="panel-count">{items.length}</span></div><TableFrame loading={loading} rows={items} emptyTitle={memberId ? 'Chưa có lượt check-in' : 'Chọn hội viên để xem lịch sử'} emptyDescription="Lịch sử được sắp theo thời gian mới nhất." columns={[
       { key: 'checkedInAtUtc', label: 'Thời gian', render: item => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.checkedInAtUtc)) },
@@ -666,8 +666,8 @@ export function ReportsPage() {
   }, [from, to, version]);
 
   return <>
-    <PageHeader eyebrow="REPORTING" title="Báo cáo" description="Tổng hợp hội viên, doanh thu và lượt check-in theo khoảng ngày." action={<button className="button button-quiet" onClick={() => setVersion(value => value + 1)}><RefreshCw size={16} />Làm mới</button>} />
-    <form className="report-filter" onSubmit={event => { event.preventDefault(); setVersion(value => value + 1); }}><label className="field-label">Từ ngày<input type="date" value={from} onChange={event => setFrom(event.target.value)} /></label><label className="field-label">Đến ngày<input type="date" value={to} onChange={event => setTo(event.target.value)} /></label><button className="button button-primary" disabled={from > to || loading}>Áp dụng kỳ báo cáo</button>{from > to && <span className="inline-error">Ngày bắt đầu phải trước ngày kết thúc.</span>}</form>
+    <PageHeader eyebrow="REPORTING" title="Báo cáo vận hành" description="Thống kê hội viên, doanh thu và lượt check-in theo khoảng thời gian." action={<button className="button button-quiet" onClick={() => setVersion(value => value + 1)} title="Tải lại báo cáo mới nhất"><RefreshCw size={16} />Cập nhật báo cáo</button>} />
+    <form className="report-filter" onSubmit={event => { event.preventDefault(); setVersion(value => value + 1); }}><label className="field-label">Từ ngày<input type="date" value={from} onChange={event => setFrom(event.target.value)} /></label><label className="field-label">Đến ngày<input type="date" value={to} onChange={event => setTo(event.target.value)} /></label><button className="button button-primary" disabled={from > to || loading}>{loading ? 'Đang tải báo cáo…' : 'Xem báo cáo kỳ này'}</button>{from > to && <span className="inline-error">Ngày bắt đầu phải trước ngày kết thúc.</span>}</form>
     <Notice error={error} />
     {loading ? <LoadingState /> : data && <>
       <section className="metric-grid report-metrics">
@@ -710,7 +710,7 @@ export function StaffPage() {
       <label className="field-label">Email<input name="email" type="email" required maxLength="254" /></label>
       <label className="field-label">Mật khẩu tạm thời<input name="password" type="password" required minLength="12" maxLength="128" autoComplete="new-password" /></label>
       <p className="form-helper">Ít nhất 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt. Chuyển thông tin qua kênh bảo mật.</p>
-      <button className="button button-primary" disabled={saving}>{saving ? 'Đang tạo…' : 'Tạo tài khoản Staff'}</button>
+      <button className="button button-primary" disabled={saving}>{saving ? 'Đang cấp tài khoản…' : 'Cấp tài khoản nhân viên'}</button>
     </form>
     <section className="work-panel staff-result"><p className="eyebrow">ACCESS POLICY</p><h2>Quyền được cấp</h2><div className="role-line"><span className="role-symbol">A</span><div><strong>Admin</strong><small>Tạo tài khoản Staff và quản lý workspace.</small></div></div><div className="role-line"><span className="role-symbol role-staff">S</span><div><strong>Staff</strong><small>Hội viên, gói tập, thanh toán, check-in và báo cáo.</small></div></div>{staff && <div className="created-user"><span>Đã tạo</span><strong>{staff.displayName}</strong><small>{staff.email} · #{staff.id}</small></div>}</section></section>
   </>;
