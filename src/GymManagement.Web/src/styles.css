@@ -57,7 +57,8 @@ h1, h2, h3, .brand, .metric strong { font-family: 'Space Grotesk', 'Trebuchet MS
 .sidebar-brand { padding: 0 10px 27px; color: white; font-size: 12px; }
 .sidebar-brand small { display: block; margin-top: 4px; color: #91a79b; font-family: 'DM Sans', sans-serif; font-size: 8px; letter-spacing: .14em; }
 .nav-caption { padding: 0 11px; margin: 0 0 9px; color: #80968a; font-size: 9px; font-weight: 700; letter-spacing: .13em; }
-.primary-nav { display: grid; gap: 4px; }
+.primary-nav { display: grid; align-content: start; gap: 14px; min-height: 0; flex: 1; overflow-y: auto; padding: 2px 3px 12px 0; }
+.nav-group { display: grid; gap: 4px; }
 .primary-nav a { min-height: 42px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-radius: 6px; color: #becbc1; text-decoration: none; font-size: 13px; font-weight: 500; transition: background .16s ease, color .16s ease; }
 .primary-nav a:hover { color: white; background: rgba(255,255,255,.08); }
 .primary-nav a.active { color: #17251f; background: var(--lime); font-weight: 700; }
@@ -274,6 +275,11 @@ body { background:
 .app-shell .sidebar { border-right: 1px solid rgba(215, 236, 105, .08); }
 .app-shell .sidebar-brand { border-bottom: 1px solid rgba(255,255,255,.08); }
 .app-shell .primary-nav a { margin: 0 2px; }
+.app-shell .nav-caption { padding-left: 12px; margin: 0 0 3px; color: #859b8e; font-size: 8px; letter-spacing: .16em; }
+.app-shell .primary-nav a { position: relative; }
+.app-shell .primary-nav a::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: transparent; transition: background .15s ease; }
+.app-shell .primary-nav a.active::before { background: var(--forest); }
+.app-shell .primary-nav a:not(.active):hover { transform: translateX(2px); }
 .app-shell .primary-nav a.active { box-shadow: 0 7px 18px rgba(215, 236, 105, .12); }
 .app-shell .topbar { box-shadow: 0 4px 18px rgba(31, 58, 47, .025); }
 .app-shell .topbar-portal-btn { min-height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid var(--line); border-radius: 6px; color: var(--forest); background: #fff; text-decoration: none; font-size: 11px; font-weight: 700; }
@@ -291,6 +297,13 @@ body { background:
 .app-shell .form-actions { border-top: 1px solid var(--line); padding-top: 16px; }
 .app-shell .form-actions .button { min-width: 130px; }
 .app-shell .status-badge { min-width: 108px; justify-content: center; }
+.app-shell .sidebar-status { margin-top: 4px; }
+.app-shell .account-chip { padding: 5px 9px 5px 5px; border: 1px solid rgba(223, 229, 223, .8); border-radius: 999px; background: rgba(255,255,255,.7); }
+.app-shell .avatar { width: 32px; height: 32px; }
+.app-shell .topbar { position: sticky; top: 0; z-index: 15; backdrop-filter: blur(12px); }
+.app-shell .page-content { min-height: calc(100vh - 118px); }
+.app-shell .table-toolbar { min-height: 64px; }
+.app-shell .work-panel { padding: 22px; }
 
 @media (max-width: 1120px) {
   .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

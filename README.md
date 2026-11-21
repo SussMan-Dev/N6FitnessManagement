@@ -191,3 +191,6 @@ Validation dùng DataAnnotations; Identity băm mật khẩu, khóa đăng nhậ
 - [README_PROGRESS.md](README_PROGRESS.md)
 - [README_ISSUES.md](README_ISSUES.md)
 - [README_DECISIONS.md](README_DECISIONS.md)
+Đã chỉnh sửa cần duyệt
+Tung Tung Tung Sarhua
+Anh Da Den Toi Choi

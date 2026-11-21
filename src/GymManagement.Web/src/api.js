@@ -12,10 +12,23 @@ export function getSession() {
   const token = sessionStorage.getItem('token');
   if (!token) return null;
 
+  let roles;
+  try {
+    roles = JSON.parse(sessionStorage.getItem('roles') || '[]');
+  } catch {
+    clearSession();
+    return null;
+  }
+
+  if (!Array.isArray(roles) || roles.some(role => typeof role !== 'string')) {
+    clearSession();
+    return null;
+  }
+
   return {
     token,
     email: sessionStorage.getItem('user') || '',
-    roles: JSON.parse(sessionStorage.getItem('roles') || '[]'),
+    roles,
   };
 }
 
