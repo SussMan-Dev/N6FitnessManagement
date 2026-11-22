@@ -240,10 +240,16 @@ function App() {
     return () => window.removeEventListener('gym:session-expired', onExpired);
   }, [navigate]);
 
-  function logout() {
-    clearSession();
-    setSession(null);
-    navigate('/login', { replace: true });
+  async function logout() {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+    } catch {
+      // Proceed to clear local state even if offline
+    } finally {
+      clearSession();
+      setSession(null);
+      navigate('/login', { replace: true });
+    }
   }
 
   return (

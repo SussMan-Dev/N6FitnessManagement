@@ -66,4 +66,18 @@ public sealed class AuthService(
 
         return new LoginResponse(new JwtSecurityTokenHandler().WriteToken(token), expiresAt, email, roles);
     }
+
+    public async Task<bool> LogoutAsync(int userId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return false;
+        }
+
+        // Change SecurityStamp in DB to invalidate all existing tokens immediately across all devices!
+        var updateStampResult = await userManager.UpdateSecurityStampAsync(user);
+        return updateStampResult.Succeeded;
+    }
 }
