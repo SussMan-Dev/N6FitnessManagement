@@ -35,10 +35,65 @@ public sealed class MemberService(GymDbContext dbContext) : IMemberService
             .ThenBy(member => member.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(member => ToResponse(member))
             .ToListAsync(cancellationToken);
 
-        return new PagedResponse<MemberResponse>(page, pageSize, totalCount, members);
+        var memberIds = members.Select(m => m.Id).ToList();
+        var subscriptions = await dbContext.Subscriptions.AsNoTracking()
+            .Where(s => memberIds.Contains(s.MemberId))
+            .OrderByDescending(s => s.StartsOn)
+            .ThenByDescending(s => s.Id)
+            .ToListAsync(cancellationToken);
+
+        var planIds = subscriptions.Select(s => s.MembershipPlanId).Distinct().ToList();
+        var plans = await dbContext.MembershipPlans.AsNoTracking()
+            .Where(p => planIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, cancellationToken);
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var resultList = members.Select(member =>
+        {
+            var memberSubs = subscriptions.Where(s => s.MemberId == member.Id).ToList();
+            var activeSub = memberSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.Active && (s.EndsOn == null || s.EndsOn >= today))
+                            ?? memberSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.Active)
+                            ?? memberSubs.FirstOrDefault();
+
+            string? planName = null;
+            DateOnly? endsOn = null;
+            int? daysRemaining = null;
+            SubscriptionStatus? subStatus = null;
+
+            if (activeSub != null)
+            {
+                subStatus = activeSub.Status;
+                endsOn = activeSub.EndsOn;
+                if (plans.TryGetValue(activeSub.MembershipPlanId, out var plan))
+                {
+                    planName = plan.Name;
+                }
+
+                if (activeSub.EndsOn.HasValue)
+                {
+                    daysRemaining = activeSub.EndsOn.Value.DayNumber - today.DayNumber;
+                }
+            }
+
+            return new MemberResponse(
+                member.Id,
+                member.FirstName,
+                member.LastName,
+                member.Email,
+                member.Phone,
+                member.BirthDate,
+                member.JoinedAtUtc,
+                member.Status,
+                planName,
+                endsOn,
+                daysRemaining,
+                subStatus);
+        }).ToList();
+
+        return new PagedResponse<MemberResponse>(page, pageSize, totalCount, resultList);
     }
 
     public async Task<MemberResponse?> GetByIdAsync(int id, CancellationToken cancellationToken)
@@ -46,7 +101,46 @@ public sealed class MemberService(GymDbContext dbContext) : IMemberService
         var member = await dbContext.Members.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
 
-        return member is null ? null : ToResponse(member);
+        if (member is null) return null;
+
+        var sub = await dbContext.Subscriptions.AsNoTracking()
+            .Where(s => s.MemberId == id)
+            .OrderByDescending(s => s.StartsOn)
+            .ThenByDescending(s => s.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        string? planName = null;
+        DateOnly? endsOn = null;
+        int? daysRemaining = null;
+        SubscriptionStatus? subStatus = null;
+
+        if (sub != null)
+        {
+            subStatus = sub.Status;
+            endsOn = sub.EndsOn;
+            var plan = await dbContext.MembershipPlans.AsNoTracking()
+                .SingleOrDefaultAsync(p => p.Id == sub.MembershipPlanId, cancellationToken);
+            planName = plan?.Name;
+            if (sub.EndsOn.HasValue)
+            {
+                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                daysRemaining = sub.EndsOn.Value.DayNumber - today.DayNumber;
+            }
+        }
+
+        return new MemberResponse(
+            member.Id,
+            member.FirstName,
+            member.LastName,
+            member.Email,
+            member.Phone,
+            member.BirthDate,
+            member.JoinedAtUtc,
+            member.Status,
+            planName,
+            endsOn,
+            daysRemaining,
+            subStatus);
     }
 
     public async Task<(MemberResponse? Member, bool EmailConflict)> CreateAsync(

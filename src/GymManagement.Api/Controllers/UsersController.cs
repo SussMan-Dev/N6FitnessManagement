@@ -11,6 +11,14 @@ namespace GymManagement.Api.Controllers;
 [Route("api/users")]
 public sealed class UsersController(IUserManagementService userManagementService) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<StaffResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<StaffResponse>>> GetAll(CancellationToken cancellationToken)
+    {
+        var staffList = await userManagementService.GetAllAsync(cancellationToken);
+        return Ok(staffList);
+    }
+
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(StaffResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -36,5 +44,20 @@ public sealed class UsersController(IUserManagementService userManagementService
         }
 
         return CreatedAtAction(nameof(GetById), new { id = result.Staff.Id }, result.Staff);
+    }
+
+    [HttpPut("{id:int}/toggle-status")]
+    [ProducesResponseType(typeof(StaffResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<StaffResponse>> ToggleStatus(int id, CancellationToken cancellationToken)
+    {
+        var (staff, error) = await userManagementService.ToggleStaffStatusAsync(id, cancellationToken);
+        if (error is not null)
+        {
+            return BadRequest(new { Message = error });
+        }
+
+        return staff is null ? NotFound() : Ok(staff);
     }
 }

@@ -25,4 +25,10 @@ public sealed class CreateStaffRequest
 
 public sealed record LoginResponse(string AccessToken, DateTime ExpiresAtUtc, string Email, IReadOnlyList<string> Roles);
 
-public sealed record StaffResponse(int Id, string Email, string DisplayName, IReadOnlyList<string> Roles);
+public sealed record StaffResponse(
+    int Id,
+    string Email,
+    string DisplayName,
+    IReadOnlyList<string> Roles,
+    bool IsActive = true,
+    DateTimeOffset? LockoutEnd = null);

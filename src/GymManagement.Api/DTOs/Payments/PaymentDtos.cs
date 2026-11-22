@@ -38,7 +38,8 @@ public sealed record PaymentResponse(
     int? ReviewedByUserId,
     DateTime? ReviewedAtUtc,
     string? AdjustmentReason,
-    int? ReceiptFileId = null);
+    int? ReceiptFileId = null,
+    IReadOnlyList<int>? ReceiptFileIds = null);
 
 public enum PaymentError
 {

@@ -43,7 +43,7 @@ export function PortalLayout() {
         </div>
         <div className="portal-container portal-nav-bar">
           <Link to="/portal" className="brand portal-brand">
-            <span className="brand-mark">G</span>
+            <span className="brand-mark"><Dumbbell size={20} strokeWidth={2.5} /></span>
             <div>
               <span className="portal-brand-title">FITNESS CENTER</span>
               <small className="portal-brand-sub">HỆ THỐNG PHÒNG TẬP CAO CẤP</small>
@@ -79,7 +79,7 @@ export function PortalLayout() {
         <div className="portal-container portal-footer-grid">
           <div>
             <div className="brand portal-brand-light">
-              <span className="brand-mark">G</span>
+              <span className="brand-mark"><Dumbbell size={20} strokeWidth={2.5} /></span>
               <div>
                 <strong>FITNESS CENTER</strong>
                 <small>CHUYÊN NGHIỆP · TẬN TÂM · ĐẲNG CẤP</small>
@@ -337,6 +337,8 @@ export function PortalRegisterPage() {
 
   const [plans, setPlans] = useState([]);
   const [selectedPlanId, setSelectedPlanId] = useState(preselectedPlanId ? Number(preselectedPlanId) : null);
+  const [planSearch, setPlanSearch] = useState('');
+  const [durationFilter, setDurationFilter] = useState('all');
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -373,6 +375,23 @@ export function PortalRegisterPage() {
     }
     loadPlans();
   }, [preselectedPlanId]);
+
+  const filteredPlans = React.useMemo(() => {
+    return plans.filter(plan => {
+      const q = planSearch.toLowerCase().trim();
+      const matchesSearch = !q ||
+        plan.name.toLowerCase().includes(q) ||
+        (plan.description && plan.description.toLowerCase().includes(q));
+
+      const matchesDuration =
+        durationFilter === 'all' ||
+        (durationFilter === 'short' && plan.durationDays <= 31) ||
+        (durationFilter === 'medium' && plan.durationDays > 31 && plan.durationDays <= 90) ||
+        (durationFilter === 'long' && plan.durationDays > 90);
+
+      return matchesSearch && matchesDuration;
+    });
+  }, [plans, planSearch, durationFilter]);
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
 
@@ -450,14 +469,61 @@ export function PortalRegisterPage() {
         <div className="portal-form-main">
           {/* Section 1: Choose plan */}
           <div className="portal-form-card">
-            <h3 className="portal-form-card-title">
-              <span className="step-num">1</span> Chọn Gói Tập
-            </h3>
+            <div className="portal-card-header-flex">
+              <h3 className="portal-form-card-title">
+                <span className="step-num">1</span> Chọn Gói Tập Thể Thao
+              </h3>
+              <span className="portal-step-hint">Chọn gói phù hợp với mục tiêu thể lực của bạn</span>
+            </div>
+
+            {/* Plan search & duration filter toolbar */}
+            <div className="portal-plan-filter-toolbar">
+              <div className="portal-plan-search-box">
+                <Search size={16} className="plan-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Tìm gói tập theo tên hoặc số ngày tập…"
+                  value={planSearch}
+                  onChange={e => setPlanSearch(e.target.value)}
+                  className="portal-plan-search-input"
+                />
+                {planSearch && (
+                  <button type="button" className="plan-search-clear" onClick={() => setPlanSearch('')}>
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <div className="portal-duration-chips">
+                {[
+                  { key: 'all', label: 'Tất cả gói' },
+                  { key: 'short', label: '1 tháng (≤ 30 ngày)' },
+                  { key: 'medium', label: '3 - 6 tháng' },
+                  { key: 'long', label: '1 năm trở lên' },
+                ].map(chip => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    className={`portal-duration-chip ${durationFilter === chip.key ? 'active' : ''}`}
+                    onClick={() => setDurationFilter(chip.key)}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {loadingPlans ? (
               <p className="muted">Đang tải danh sách gói tập…</p>
+            ) : filteredPlans.length === 0 ? (
+              <div className="portal-empty-search">
+                <p>Không tìm thấy gói tập nào phù hợp với từ khóa "<strong>{planSearch}</strong>".</p>
+                <button type="button" className="button button-quiet button-small" onClick={() => { setPlanSearch(''); setDurationFilter('all'); }}>
+                  Xem lại tất cả gói tập
+                </button>
+              </div>
             ) : (
               <div className="portal-plan-select-grid">
-                {plans.map(plan => {
+                {filteredPlans.map(plan => {
                   const isSelected = plan.id === selectedPlanId;
                   return (
                     <div
@@ -469,11 +535,15 @@ export function PortalRegisterPage() {
                         <span className={`radio-dot ${isSelected ? 'checked' : ''}`} />
                       </div>
                       <div className="option-info">
-                        <strong>{plan.name}</strong>
+                        <div className="option-header-row">
+                          <strong>{plan.name}</strong>
+                          {plan.durationDays >= 365 && <span className="plan-badge-tag">VIP</span>}
+                        </div>
                         <div className="option-meta">
                           <span className="option-price">{formatMoney(plan.price)}</span>
                           <span className="option-days">· {plan.durationDays} ngày</span>
                         </div>
+                        {plan.description && <p className="option-desc">{plan.description}</p>}
                       </div>
                     </div>
                   );

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.RegularExpressions;
 using GymManagement.Api.Data;
 using GymManagement.Api.DTOs;
 using GymManagement.Api.DTOs.Payments;
@@ -189,9 +190,63 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
             return (null, PaymentError.FileNotFound);
         }
 
-        payment.ReceiptFileId = fileId;
+        var currentIds = GetReceiptFileIds(payment).ToList();
+        if (!currentIds.Contains(fileId))
+        {
+            currentIds.Add(fileId);
+        }
+
+        if (payment.ReceiptFileId is null)
+        {
+            payment.ReceiptFileId = fileId;
+        }
+
+        // Preserve all uploaded receipts permanently without removing old images
+        var idsTag = $"[RECEIPTS:{string.Join(",", currentIds)}]";
+        if (string.IsNullOrWhiteSpace(payment.AdjustmentReason))
+        {
+            payment.AdjustmentReason = idsTag;
+        }
+        else if (payment.AdjustmentReason.Contains("[RECEIPTS:"))
+        {
+            payment.AdjustmentReason = Regex.Replace(payment.AdjustmentReason, @"\[RECEIPTS:[0-9,]+\]", idsTag);
+        }
+        else
+        {
+            payment.AdjustmentReason = $"{payment.AdjustmentReason} {idsTag}".Trim();
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
         return (ToResponse(payment), null);
+    }
+
+    public static IReadOnlyList<int> GetReceiptFileIds(Payment payment)
+    {
+        var list = new List<int>();
+        if (payment.ReceiptFileId.HasValue)
+        {
+            list.Add(payment.ReceiptFileId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(payment.AdjustmentReason) && payment.AdjustmentReason.Contains("[RECEIPTS:"))
+        {
+            var match = Regex.Match(payment.AdjustmentReason, @"\[RECEIPTS:([0-9,]+)\]");
+            if (match.Success)
+            {
+                var ids = match.Groups[1].Value.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => int.TryParse(s, out var id) ? id : 0)
+                    .Where(id => id > 0);
+                foreach (var id in ids)
+                {
+                    if (!list.Contains(id))
+                    {
+                        list.Add(id);
+                    }
+                }
+            }
+        }
+
+        return list;
     }
 
     public async Task<PaymentResponse?> GetByIdAsync(int id, CancellationToken cancellationToken)
@@ -239,5 +294,6 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
         payment.ReviewedByUserId,
         payment.ReviewedAtUtc,
         payment.AdjustmentReason,
-        payment.ReceiptFileId);
+        payment.ReceiptFileId,
+        GetReceiptFileIds(payment));
 }
