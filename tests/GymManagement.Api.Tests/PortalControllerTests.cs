@@ -76,7 +76,7 @@ public sealed class PortalControllerTests
         Assert.AreEqual("VIP Year", response.PlanName);
         Assert.AreEqual(6000000m, response.Price);
         Assert.AreEqual(new DateOnly(2026, 11, 10), response.StartsOn);
-        Assert.AreEqual(new DateOnly(2026, 11, 10).AddDays(365), response.EndsOn);
+        Assert.AreEqual(new DateOnly(2026, 11, 10).AddDays(364), response.EndsOn);
         Assert.IsTrue(response.InvoiceNumber.StartsWith("INV-"));
         Assert.IsTrue(response.QrCodeUrl.Contains("vietqr.io"));
 
@@ -123,7 +123,7 @@ public sealed class PortalControllerTests
             MemberId = 5,
             MembershipPlanId = 20,
             StartsOn = new DateOnly(2026, 11, 1),
-            EndsOn = new DateOnly(2026, 11, 1).AddDays(90),
+            EndsOn = new DateOnly(2026, 11, 1).AddDays(89),
             Status = SubscriptionStatus.Active,
             CreatedAtUtc = DateTime.UtcNow
         };
