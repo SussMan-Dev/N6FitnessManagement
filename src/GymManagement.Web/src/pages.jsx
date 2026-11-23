@@ -15,6 +15,7 @@ import {
   Download,
   Dumbbell,
   Eye,
+  FileText,
   Image,
   FilePlus2,
   Plus,
@@ -1205,6 +1206,99 @@ export function InvoicesPage() {
   </>;
 }
 
+function ReceiptThumbnailItem({ receipt, index, isSelected, onSelect }) {
+  const [loadError, setLoadError] = useState(false);
+  return (
+    <div
+      className={`receipt-thumb-card ${isSelected ? 'active' : ''}`}
+      onClick={onSelect}
+    >
+      <div className="thumb-preview">
+        {!loadError ? (
+          <img
+            src={receipt.url}
+            alt={`Biên lai đợt ${index + 1}`}
+            onError={() => setLoadError(true)}
+          />
+        ) : (
+          <div className="thumb-fallback">
+            <FileText size={18} />
+          </div>
+        )}
+      </div>
+      <div className="thumb-meta">
+        <strong>Đợt {index + 1}</strong>
+        <small>{formatDate(receipt.uploadedAt)}</small>
+      </div>
+    </div>
+  );
+}
+
+function ReceiptCanvasViewer({ receipt, index }) {
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    setLoadError(false);
+  }, [receipt?.id, receipt?.url]);
+
+  if (!receipt) return null;
+
+  return (
+    <div className="receipt-main-canvas">
+      <div className="canvas-image-wrap">
+        {!loadError ? (
+          <img
+            src={receipt.url}
+            alt={`Biên lai đợt ${index + 1}`}
+            className="canvas-image"
+            onError={() => setLoadError(true)}
+          />
+        ) : (
+          <div className="canvas-fallback" style={{ padding: '36px', textAlign: 'center' }}>
+            <FileText size={48} style={{ color: 'var(--lime)', marginBottom: '12px' }} />
+            <p style={{ fontWeight: 600 }}>Tệp chứng từ không phải định dạng ảnh trực tiếp (PDF hoặc tài liệu).</p>
+            <a
+              className="button button-primary"
+              href={receipt.url}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '10px' }}
+            >
+              <Eye size={15} /> Mở tệp chứng từ trong tab mới
+            </a>
+          </div>
+        )}
+      </div>
+
+      {/* Viewer Metadata & Actions */}
+      <div className="canvas-meta-toolbar">
+        <div className="canvas-file-info">
+          <strong>Biên lai đợt {index + 1}: {receipt.fileName || 'ChungTuThanhToan.jpg'}</strong>
+          <small>Tải lên lúc: {formatDate(receipt.uploadedAt)}</small>
+        </div>
+        <div className="canvas-actions">
+          <a
+            className="button button-quiet button-small"
+            href={receipt.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Eye size={14} /> Mở ảnh gốc
+          </a>
+          <a
+            className="button button-primary button-small"
+            href={receipt.downloadUrl || receipt.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Download size={14} /> Tải file về
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PaymentsPage() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
@@ -1647,91 +1741,23 @@ export function PaymentsPage() {
             <div className="receipt-gallery-body">
               {/* Thumbnail Strip (Multi-Bill Tabs) */}
               <div className="receipt-thumbnail-strip">
-                {receiptsList.map((rec, idx) => {
-                  const isSelected = idx === activeReceiptIndex;
-                  return (
-                    <div
-                      key={rec.id || idx}
-                      className={`receipt-thumb-card ${isSelected ? 'active' : ''}`}
-                      onClick={() => setActiveReceiptIndex(idx)}
-                    >
-                      <div className="thumb-preview">
-                        <img
-                          src={rec.url}
-                          alt={`Biên lai đợt ${idx + 1}`}
-                          onError={e => {
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                        <div className="thumb-fallback" style={{ display: 'none' }}>
-                          <FileText size={18} />
-                        </div>
-                      </div>
-                      <div className="thumb-meta">
-                        <strong>Đợt {idx + 1}</strong>
-                        <small>{formatDate(rec.uploadedAt)}</small>
-                      </div>
-                    </div>
-                  );
-                })}
+                {receiptsList.map((rec, idx) => (
+                  <ReceiptThumbnailItem
+                    key={rec.id || idx}
+                    receipt={rec}
+                    index={idx}
+                    isSelected={idx === activeReceiptIndex}
+                    onSelect={() => setActiveReceiptIndex(idx)}
+                  />
+                ))}
               </div>
 
               {/* Main Active Receipt Viewer */}
               {receiptsList[activeReceiptIndex] && (
-                <div className="receipt-main-canvas">
-                  <div className="canvas-image-wrap">
-                    <img
-                      src={receiptsList[activeReceiptIndex].url}
-                      alt={`Biên lai đợt ${activeReceiptIndex + 1}`}
-                      className="canvas-image"
-                      onError={e => {
-                        e.currentTarget.style.display = 'none';
-                        const fallback = document.getElementById('canvas-fallback');
-                        if (fallback) fallback.style.display = 'block';
-                      }}
-                    />
-                    <div id="canvas-fallback" style={{ display: 'none', padding: '36px', textAlign: 'center' }}>
-                      <FileText size={48} style={{ color: 'var(--lime)', marginBottom: '12px' }} />
-                      <p style={{ fontWeight: 600 }}>Tệp chứng từ không phải định dạng ảnh trực tiếp (PDF).</p>
-                      <a
-                        className="button button-primary"
-                        href={receiptsList[activeReceiptIndex].url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '10px' }}
-                      >
-                        <Eye size={15} /> Mở tệp PDF trong tab mới
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Viewer Metadata & Actions */}
-                  <div className="canvas-meta-toolbar">
-                    <div className="canvas-file-info">
-                      <strong>Biên lai đợt {activeReceiptIndex + 1}: {receiptsList[activeReceiptIndex].fileName || 'ChungTuThanhToan.jpg'}</strong>
-                      <small>Tải lên lúc: {formatDate(receiptsList[activeReceiptIndex].uploadedAt)}</small>
-                    </div>
-                    <div className="canvas-actions">
-                      <a
-                        className="button button-quiet button-small"
-                        href={receiptsList[activeReceiptIndex].url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <Eye size={14} /> Mở ảnh gốc
-                      </a>
-                      <a
-                        className="button button-primary button-small"
-                        href={receiptsList[activeReceiptIndex].downloadUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <Download size={14} /> Tải file về
-                      </a>
-                    </div>
-                  </div>
-                </div>
+                <ReceiptCanvasViewer
+                  receipt={receiptsList[activeReceiptIndex]}
+                  index={activeReceiptIndex}
+                />
               )}
             </div>
           )}
