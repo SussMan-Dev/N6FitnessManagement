@@ -14,6 +14,8 @@ public interface IInvoiceService
 
     Task<PagedResponse<InvoiceResponse>> SearchAsync(
         int? memberId,
+        string? search,
+        GymManagement.Api.Models.InvoiceStatus? status,
         int page,
         int pageSize,
         CancellationToken cancellationToken);

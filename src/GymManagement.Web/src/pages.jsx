@@ -34,8 +34,28 @@ import {
   X,
 } from 'lucide-react';
 import { api, dateInputValue, formatDate, formatMoney, uploadFile, uploadPaymentReceipt } from './api';
+import { Pagination, buildQuery, fetchAllPages, paginate, useDebouncedValue, usePagination } from './pagination';
 import { playCheckinError, playCheckinSuccess } from './sound';
 import { useToast } from './toast';
+
+/**
+ * Server-side member lookup for selectors (subscriptions, check-in…). Instead of loading
+ * the first 100 members and filtering in the browser, we query the API with the search term
+ * so every member is reachable no matter how large the list grows.
+ */
+function useMemberLookup(search, limit = 50) {
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [state, setState] = useState({ items: [], totalCount: 0, loading: true, error: '' });
+  useEffect(() => {
+    let active = true;
+    setState(current => ({ ...current, loading: true }));
+    api(`/members${buildQuery({ page: 1, pageSize: limit, search: debouncedSearch })}`)
+      .then(result => { if (active) setState({ items: result.items || [], totalCount: result.totalCount || 0, loading: false, error: '' }); })
+      .catch(requestError => { if (active) setState(current => ({ ...current, loading: false, error: requestError.message })); });
+    return () => { active = false; };
+  }, [debouncedSearch, limit]);
+  return state;
+}
 
 export function Notice({ error, success }) {
   if (!error && !success) return null;
@@ -141,7 +161,7 @@ function TableFrame({ columns, rows, loading, emptyTitle, emptyDescription, rowK
 const resourceConfig = {
   members: {
     title: 'Hội viên', eyebrow: 'MEMBERSHIP', description: 'Hồ sơ hội viên, gói tập đăng ký và thời hạn sử dụng.', path: '/members',
-    query: search => `?page=1&pageSize=100${search ? `&search=${encodeURIComponent(search)}` : ''}`,
+    query: (search, page, pageSize) => buildQuery({ page, pageSize, search }),
     fields: [
       { name: 'firstName', label: 'Họ', required: true },
       { name: 'lastName', label: 'Tên', required: true },
@@ -235,7 +255,7 @@ const resourceConfig = {
   },
   plans: {
     title: 'Gói tập', eyebrow: 'MEMBERSHIP', description: 'Danh mục gói và giá bán hiện tại.', path: '/membership-plans',
-    query: search => `?includeInactive=true&page=1&pageSize=100${search ? `&search=${encodeURIComponent(search)}` : ''}`,
+    query: (search, page, pageSize) => buildQuery({ includeInactive: true, page, pageSize, search }),
     fields: [
       { name: 'name', label: 'Tên gói', required: true },
       { name: 'description', label: 'Mô tả', type: 'textarea' },
@@ -257,7 +277,7 @@ const resourceConfig = {
     eyebrow: 'PERSONAL TRAINERS',
     description: 'Đội ngũ Huấn luyện viên thể hình chuyên nghiệp (PT 1:1). Quản lý năng lực chuyên môn, phân bổ học viên và trạng thái sẵn sàng tiếp nhận lịch tập.',
     path: '/trainers',
-    query: search => `?includeInactive=true&page=1&pageSize=100${search ? `&search=${encodeURIComponent(search)}` : ''}`,
+    query: (search, page, pageSize) => buildQuery({ includeInactive: true, page, pageSize, search }),
     fields: [
       { name: 'firstName', label: 'Họ', required: true },
       { name: 'lastName', label: 'Tên', required: true },
@@ -327,6 +347,7 @@ function ResourceDialog({ config, initial, onClose, onSave, saving, error }) {
 export function ResourcePage({ type }) {
   const config = resourceConfig[type];
   const [items, setItems] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -334,16 +355,21 @@ export function ResourcePage({ type }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [version, setVersion] = useState(0);
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const { page, pageSize, setPage, setPageSize } = usePagination(20, [type, debouncedSearch]);
+
+  // Same component instance is reused when switching between members/plans/trainers routes.
+  useEffect(() => { setSearch(''); setSuccess(''); }, [type]);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    api(`${config.path}${config.query(search)}`)
-      .then(result => { if (active) { setItems(result.items || []); setError(''); } })
+    api(`${config.path}${config.query(debouncedSearch, page, pageSize)}`)
+      .then(result => { if (active) { setItems(result.items || []); setTotalCount(result.totalCount || 0); setError(''); } })
       .catch(requestError => { if (active) setError(requestError.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [config, search, version]);
+  }, [config, debouncedSearch, page, pageSize, version]);
 
   async function save(event) {
     event.preventDefault();
@@ -389,8 +415,9 @@ export function ResourcePage({ type }) {
     <PageHeader eyebrow={config.eyebrow} title={config.title} description={config.description} action={<button className="button button-primary" onClick={() => { setError(''); setModal({ item: null }); }}><Plus size={17} />Thêm mới</button>} />
     <Notice error={error} success={success} />
     <section className="table-panel">
-      <div className="table-toolbar"><div><strong>{items.length}</strong><span> bản ghi</span></div><label className="search-field"><Search size={16} /><input aria-label="Tìm kiếm" placeholder={`Tìm ${config.title.toLowerCase()}…`} value={search} onChange={event => setSearch(event.target.value)} /></label></div>
-      <TableFrame columns={columns} rows={items} loading={loading} emptyTitle={`Chưa có ${config.title.toLowerCase()}`} emptyDescription="Tạo bản ghi mới để bắt đầu quản lý." />
+      <div className="table-toolbar"><div><strong>{totalCount}</strong><span> bản ghi</span></div><label className="search-field"><Search size={16} /><input aria-label="Tìm kiếm" placeholder={`Tìm ${config.title.toLowerCase()}…`} value={search} onChange={event => setSearch(event.target.value)} /></label></div>
+      <TableFrame columns={columns} rows={items} loading={loading} emptyTitle={debouncedSearch ? 'Không tìm thấy kết quả phù hợp' : `Chưa có ${config.title.toLowerCase()}`} emptyDescription={debouncedSearch ? 'Thử từ khóa khác.' : 'Tạo bản ghi mới để bắt đầu quản lý.'} />
+      <Pagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} onPageSizeChange={setPageSize} disabled={loading} />
     </section>
     {modal && <ResourceDialog config={config} initial={modal.item} onClose={() => setModal(null)} onSave={save} saving={saving} error={error} />}
   </>;
@@ -434,9 +461,9 @@ export function DashboardPage() {
 
 export function SubscriptionsPage() {
   const toast = useToast();
-  const [members, setMembers] = useState([]);
   const [plans, setPlans] = useState([]);
   const [memberId, setMemberId] = useState('');
+  const [selectedMember, setSelectedMember] = useState(null);
   const [memberSearch, setMemberSearch] = useState('');
   const [items, setItems] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
@@ -445,23 +472,17 @@ export function SubscriptionsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [version, setVersion] = useState(0);
+  const memberLookup = useMemberLookup(memberSearch);
 
   // Filter toolbar state
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const { page, pageSize, setPage, setPageSize } = usePagination(10, [memberId, statusFilter, searchQuery]);
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      api('/members?page=1&pageSize=100'),
-      api('/membership-plans?includeInactive=false&page=1&pageSize=100'),
-    ])
-      .then(([memberResult, planResult]) => {
-        if (active) {
-          setMembers(memberResult.items || []);
-          setPlans(planResult.items || []);
-        }
-      })
+    api('/membership-plans?includeInactive=false&page=1&pageSize=100')
+      .then(planResult => { if (active) setPlans(planResult.items || []); })
       .catch(requestError => { if (active) setError(requestError.message); })
       .finally(() => { if (active) setLoadingOptions(false); });
     return () => { active = false; };
@@ -478,17 +499,15 @@ export function SubscriptionsPage() {
     return () => { active = false; };
   }, [memberId, version]);
 
-  const selectedMember = members.find(member => String(member.id) === String(memberId));
+  // Keep the chosen member visible in the <select> even when the search results change.
+  const filteredMembersForCreate = selectedMember && !memberLookup.items.some(member => member.id === selectedMember.id)
+    ? [selectedMember, ...memberLookup.items]
+    : memberLookup.items;
 
-  const filteredMembersForCreate = members.filter(member => {
-    if (!memberSearch.trim()) return true;
-    const q = memberSearch.toLowerCase().trim();
-    return (
-      `${member.firstName} ${member.lastName}`.toLowerCase().includes(q) ||
-      (member.phone && member.phone.includes(q)) ||
-      String(member.id).includes(q)
-    );
-  });
+  function selectMember(id) {
+    setMemberId(id);
+    setSelectedMember(filteredMembersForCreate.find(member => String(member.id) === String(id)) || null);
+  }
 
   const filteredSubscriptions = items.filter(sub => {
     if (statusFilter !== 'all' && sub.status !== statusFilter) return false;
@@ -596,10 +615,14 @@ export function SubscriptionsPage() {
               name="memberId"
               required
               value={memberId}
-              onChange={event => setMemberId(event.target.value)}
+              onChange={event => selectMember(event.target.value)}
               style={{ marginTop: '8px' }}
             >
-              <option value="">-- Chọn hội viên ({filteredMembersForCreate.length}) --</option>
+              <option value="">
+                {memberLookup.loading
+                  ? '-- Đang tìm hội viên… --'
+                  : `-- Chọn hội viên (${memberLookup.items.length}${memberLookup.totalCount > memberLookup.items.length ? ` / ${memberLookup.totalCount}, gõ thêm để thu hẹp` : ''}) --`}
+              </option>
               {filteredMembersForCreate.map(m => (
                 <option key={m.id} value={m.id}>
                   {m.firstName} {m.lastName} · SĐT: {m.phone || '—'} · #{m.id}
@@ -639,7 +662,7 @@ export function SubscriptionsPage() {
         <button
           className="button button-primary button-wide"
           type="submit"
-          disabled={saving || loadingOptions || !members.length || !plans.length}
+          disabled={saving || loadingOptions || !memberId || !plans.length}
         >
           <Plus size={17} />
           {saving ? 'Đang tạo đăng ký…' : 'Xác nhận tạo đăng ký'}
@@ -681,7 +704,7 @@ export function SubscriptionsPage() {
 
             <TableFrame
               loading={loading}
-              rows={filteredSubscriptions}
+              rows={paginate(filteredSubscriptions, page, pageSize)}
               emptyTitle="Không có đăng ký phù hợp"
               emptyDescription="Hội viên này chưa có gói tập nào theo bộ lọc đang chọn."
               columns={[
@@ -734,6 +757,15 @@ export function SubscriptionsPage() {
                 },
               ]}
             />
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredSubscriptions.length}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[5, 10, 20, 50]}
+              unit="đăng ký"
+            />
           </>
         ) : (
           <EmptyState
@@ -750,7 +782,7 @@ export function InvoicesPage() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [items, setItems] = useState([]);
-  const [members, setMembers] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [subscriptions, setSubscriptions] = useState([]);
   const [subscriptionId, setSubscriptionId] = useState(params.get('subscriptionId') || '');
   const [loading, setLoading] = useState(true);
@@ -759,31 +791,32 @@ export function InvoicesPage() {
   const [saving, setSaving] = useState(false);
   const [version, setVersion] = useState(0);
 
-  // Search & Filter
+  // Search & Filter (applied server-side)
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const { page, pageSize, setPage, setPageSize } = usePagination(20, [debouncedSearch, statusFilter]);
 
   // Preview & Export Modal
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [autoInvoicing, setAutoInvoicing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      api('/invoices?page=1&pageSize=100'),
-      api('/members?page=1&pageSize=100'),
-    ])
-      .then(([invoiceRes, memberRes]) => {
+    setLoading(true);
+    api(`/invoices${buildQuery({ page, pageSize, search: debouncedSearch, status: statusFilter })}`)
+      .then(invoiceRes => {
         if (active) {
           setItems(invoiceRes.items || []);
-          setMembers(memberRes.items || []);
+          setTotalCount(invoiceRes.totalCount || 0);
           setError('');
         }
       })
       .catch(requestError => { if (active) setError(requestError.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [version]);
+  }, [page, pageSize, debouncedSearch, statusFilter, version]);
 
   useEffect(() => {
     if (!params.get('memberId')) { setSubscriptions([]); return undefined; }
@@ -814,9 +847,14 @@ export function InvoicesPage() {
     setError('');
     try {
       let createdCount = 0;
-      const existingSubIds = new Set(items.map(inv => inv.subscriptionId));
+      // Load complete lists explicitly for this bulk action (the table itself only holds one page).
+      const [allMembers, pendingInvoices] = await Promise.all([
+        fetchAllPages('/members'),
+        fetchAllPages('/invoices', { status: 'PendingPayment' }),
+      ]);
+      const existingSubIds = new Set(pendingInvoices.map(inv => inv.subscriptionId));
 
-      for (const member of members.slice(0, 50)) {
+      for (const member of allMembers) {
         try {
           const subRes = await api(`/members/${member.id}/subscriptions?page=1&pageSize=20`);
           const pendingSubs = (subRes.items || []).filter(s => s.status === 'PendingPayment' && !existingSubIds.has(s.id));
@@ -845,20 +883,29 @@ export function InvoicesPage() {
     }
   }
 
-  // Xuất file Excel / CSV (hỗ trợ UTF-8 mở trong Microsoft Excel)
-  function exportCsv() {
-    if (!items.length) {
+  // Xuất file Excel / CSV (hỗ trợ UTF-8 mở trong Microsoft Excel) — xuất toàn bộ kết quả theo bộ lọc, không chỉ trang hiện tại
+  async function exportCsv() {
+    if (!totalCount) {
       toast.warning('Chưa có hóa đơn nào để xuất file.', 'Thông báo');
       return;
     }
+    setExporting(true);
+    let allInvoices;
+    try {
+      allInvoices = await fetchAllPages('/invoices', { search: debouncedSearch, status: statusFilter });
+    } catch (err) {
+      toast.error(err.message, 'Lỗi xuất file');
+      setExporting(false);
+      return;
+    }
+    setExporting(false);
     const headers = ['Số hóa đơn', 'Mã hội viên', 'Tên hội viên', 'SĐT', 'Gói tập', 'Thời hạn (ngày)', 'Tổng tiền (VND)', 'Trạng thái', 'Ngày lập', 'Ngày thanh toán'];
-    const rows = items.map(inv => {
-      const member = members.find(m => m.id === inv.memberId);
+    const rows = allInvoices.map(inv => {
       return [
         inv.number,
         `#${inv.memberId}`,
-        member ? `${member.firstName} ${member.lastName}` : '',
-        member?.phone || '',
+        inv.memberName || '',
+        inv.memberPhone || '',
         inv.planNameSnapshot,
         inv.planDurationDaysSnapshot,
         inv.totalAmount,
@@ -888,21 +935,9 @@ export function InvoicesPage() {
     window.print();
   }
 
-  const filteredInvoices = items.filter(inv => {
-    if (statusFilter !== 'all' && inv.status !== statusFilter) return false;
-    if (!search.trim()) return true;
-    const q = search.toLowerCase().trim();
-    const member = members.find(m => m.id === inv.memberId);
-    const memberName = member ? `${member.firstName} ${member.lastName}`.toLowerCase() : '';
-    return (
-      inv.number.toLowerCase().includes(q) ||
-      inv.planNameSnapshot.toLowerCase().includes(q) ||
-      String(inv.memberId).includes(q) ||
-      memberName.includes(q)
-    );
-  });
-
-  const memberOfSelected = selectedInvoice ? members.find(m => m.id === selectedInvoice.memberId) : null;
+  const memberOfSelected = selectedInvoice?.memberName
+    ? { fullName: selectedInvoice.memberName, phone: selectedInvoice.memberPhone, email: selectedInvoice.memberEmail }
+    : null;
 
   return <>
     <PageHeader
@@ -915,9 +950,10 @@ export function InvoicesPage() {
             className="button button-quiet"
             type="button"
             onClick={exportCsv}
-            title="Xuất bảng kê danh sách hóa đơn ra file Excel CSV"
+            disabled={exporting}
+            title="Xuất bảng kê danh sách hóa đơn (theo bộ lọc hiện tại) ra file Excel CSV"
           >
-            <FileSpreadsheet size={16} /> Xuất file Excel
+            <FileSpreadsheet size={16} /> {exporting ? 'Đang xuất…' : 'Xuất file Excel'}
           </button>
           <button
             className="button button-primary"
@@ -959,8 +995,8 @@ export function InvoicesPage() {
     <section className="table-panel">
       <div className="table-toolbar" style={{ flexWrap: 'wrap', gap: '14px' }}>
         <div>
-          <strong>{filteredInvoices.length}</strong>
-          <span> / {items.length} hóa đơn</span>
+          <strong>{totalCount}</strong>
+          <span> hóa đơn{debouncedSearch || statusFilter !== 'all' ? ' phù hợp' : ''}</span>
         </div>
 
         {/* Search & Status Filters */}
@@ -998,7 +1034,7 @@ export function InvoicesPage() {
 
       <TableFrame
         loading={loading}
-        rows={filteredInvoices}
+        rows={items}
         emptyTitle="Chưa có hóa đơn phù hợp"
         emptyDescription="Bấm nút 'Tự động xuất hóa đơn' ở trên để tạo hóa đơn cho các đăng ký tập đang chờ."
         columns={[
@@ -1015,17 +1051,14 @@ export function InvoicesPage() {
           {
             key: 'member',
             label: 'Hội viên',
-            render: item => {
-              const member = members.find(m => m.id === item.memberId);
-              return member ? (
-                <div>
-                  <strong>{member.firstName} {member.lastName}</strong>
-                  <small className="table-subline">SĐT: {member.phone || '—'} · #{item.memberId}</small>
-                </div>
-              ) : (
-                <strong>#{item.memberId}</strong>
-              );
-            },
+            render: item => item.memberName ? (
+              <div>
+                <strong>{item.memberName}</strong>
+                <small className="table-subline">SĐT: {item.memberPhone || '—'} · #{item.memberId}</small>
+              </div>
+            ) : (
+              <strong>#{item.memberId}</strong>
+            ),
           },
           {
             key: 'plan',
@@ -1074,6 +1107,7 @@ export function InvoicesPage() {
           },
         ]}
       />
+      <Pagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} onPageSizeChange={setPageSize} disabled={loading} unit="hóa đơn" />
     </section>
 
     {/* Printable Invoice Receipt Modal */}
@@ -1110,7 +1144,7 @@ export function InvoicesPage() {
               <div className="receipt-customer-col">
                 <p className="receipt-caption">THÔNG TIN KHÁCH HÀNG / HỘI VIÊN:</p>
                 <p className="receipt-strong">
-                  {memberOfSelected ? `${memberOfSelected.firstName} ${memberOfSelected.lastName}` : `Hội viên #${selectedInvoice.memberId}`}
+                  {memberOfSelected ? memberOfSelected.fullName : `Hội viên #${selectedInvoice.memberId}`}
                 </p>
                 <p>Số điện thoại: <strong>{memberOfSelected?.phone || '—'}</strong></p>
                 <p>Email: {memberOfSelected?.email || '—'}</p>
@@ -1171,7 +1205,7 @@ export function InvoicesPage() {
                 <p className="sig-title">Người mua hàng / Hội viên</p>
                 <small className="sig-hint">(Ký và ghi rõ họ tên)</small>
                 <div style={{ height: '55px' }} />
-                <p className="sig-name">{memberOfSelected ? `${memberOfSelected.firstName} ${memberOfSelected.lastName}` : ''}</p>
+                <p className="sig-name">{memberOfSelected ? memberOfSelected.fullName : ''}</p>
               </div>
               <div className="sig-col">
                 <p className="sig-title">Người lập phiếu / Thu ngân</p>
@@ -1303,8 +1337,11 @@ export function PaymentsPage() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [items, setItems] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [invoices, setInvoices] = useState([]);
+  const [pendingInvoices, setPendingInvoices] = useState([]);
   const [invoiceId, setInvoiceId] = useState(params.get('invoiceId') || '');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [mode, setMode] = useState('');
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1312,6 +1349,7 @@ export function PaymentsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [version, setVersion] = useState(0);
+  const { page, pageSize, setPage, setPageSize } = usePagination(20, [invoiceId, statusFilter]);
 
   // Multi-Bill Gallery State
   const [galleryPayment, setGalleryPayment] = useState(null);
@@ -1320,21 +1358,39 @@ export function PaymentsPage() {
   const [loadingReceipts, setLoadingReceipts] = useState(false);
   const [uploadingMore, setUploadingMore] = useState(false);
 
+  // Paged payment list (server-side)
   useEffect(() => {
     let active = true;
-    const paymentQuery = invoiceId ? `&invoiceId=${encodeURIComponent(invoiceId)}` : '';
-    Promise.all([api(`/payments?page=1&pageSize=100${paymentQuery}`), api('/invoices?page=1&pageSize=100')])
-      .then(([paymentResult, invoiceResult]) => {
+    setLoading(true);
+    api(`/payments${buildQuery({ page, pageSize, invoiceId, status: statusFilter })}`)
+      .then(paymentResult => {
         if (active) {
           setItems(paymentResult.items || []);
-          setInvoices(invoiceResult.items || []);
+          setTotalCount(paymentResult.totalCount || 0);
           setError('');
         }
       })
       .catch(requestError => { if (active) setError(requestError.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [invoiceId, version]);
+  }, [invoiceId, statusFilter, page, pageSize, version]);
+
+  // Invoice options for the filter dropdown (latest 100) and the "record payment" form (pending only)
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      api('/invoices?page=1&pageSize=100'),
+      api('/invoices?status=PendingPayment&page=1&pageSize=100'),
+    ])
+      .then(([recentResult, pendingResult]) => {
+        if (active) {
+          setInvoices(recentResult.items || []);
+          setPendingInvoices(pendingResult.items || []);
+        }
+      })
+      .catch(requestError => { if (active) setError(requestError.message); });
+    return () => { active = false; };
+  }, [version]);
 
   async function openReceiptGallery(payment) {
     setGalleryPayment(payment);
@@ -1439,7 +1495,7 @@ export function PaymentsPage() {
     }
   }
 
-  const pendingInvoices = invoices.filter(invoice => invoice.status === 'PendingPayment');
+  const invoiceFilterMissing = invoiceId && !invoices.some(invoice => String(invoice.id) === String(invoiceId));
 
   return <>
     <PageHeader
@@ -1455,33 +1511,53 @@ export function PaymentsPage() {
     <Notice error={error} success={success} />
 
     <section className="table-panel">
-      <div className="table-toolbar">
+      <div className="table-toolbar" style={{ flexWrap: 'wrap' }}>
         <div>
-          <strong>{items.length}</strong>
+          <strong>{totalCount}</strong>
           <span> giao dịch</span>
         </div>
-        <select
-          className="filter-select"
-          aria-label="Lọc hóa đơn"
-          value={invoiceId}
-          onChange={event => {
-            setInvoiceId(event.target.value);
-            setParams(event.target.value ? { invoiceId: event.target.value } : {});
-          }}
-        >
-          <option value="">Tất cả hóa đơn</option>
-          {invoices.map(invoice => (
-            <option key={invoice.id} value={invoice.id}>
-              {invoice.number}
-            </option>
-          ))}
-        </select>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginLeft: 'auto' }}>
+          <div className="sub-status-tabs">
+            {[
+              { key: 'all', label: 'Tất cả' },
+              { key: 'PendingConfirmation', label: 'Chờ xác nhận' },
+              { key: 'Confirmed', label: 'Đã xác nhận' },
+              { key: 'Rejected', label: 'Từ chối' },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                className={`sub-tab-btn ${statusFilter === tab.key ? 'active' : ''}`}
+                onClick={() => setStatusFilter(tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <select
+            className="filter-select"
+            aria-label="Lọc hóa đơn"
+            value={invoiceId}
+            onChange={event => {
+              setInvoiceId(event.target.value);
+              setParams(event.target.value ? { invoiceId: event.target.value } : {});
+            }}
+          >
+            <option value="">Tất cả hóa đơn</option>
+            {invoiceFilterMissing && <option value={invoiceId}>Hóa đơn #{invoiceId}</option>}
+            {invoices.map(invoice => (
+              <option key={invoice.id} value={invoice.id}>
+                {invoice.number}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <TableFrame
         loading={loading}
         rows={items}
-        emptyTitle="Chưa có giao dịch thanh toán"
+        emptyTitle={statusFilter !== 'all' || invoiceId ? 'Không có giao dịch phù hợp' : 'Chưa có giao dịch thanh toán'}
         emptyDescription="Ghi nhận thanh toán từ một hóa đơn đang chờ."
         columns={[
           {
@@ -1497,7 +1573,7 @@ export function PaymentsPage() {
           {
             key: 'invoiceId',
             label: 'Hóa đơn',
-            render: item => invoices.find(invoice => invoice.id === item.invoiceId)?.number || `#${item.invoiceId}`,
+            render: item => item.invoiceNumber || invoices.find(invoice => invoice.id === item.invoiceId)?.number || `#${item.invoiceId}`,
           },
           {
             key: 'amount',

@@ -16,11 +16,12 @@ public sealed class PaymentsController(IPaymentService paymentService, IFileServ
     [ProducesResponseType(typeof(PagedResponse<PaymentResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<PaymentResponse>>> Search(
         [FromQuery] int? invoiceId,
+        [FromQuery] GymManagement.Api.Models.PaymentStatus? status,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await paymentService.SearchAsync(invoiceId, page, pageSize, cancellationToken));
+        return Ok(await paymentService.SearchAsync(invoiceId, status, page, pageSize, cancellationToken));
     }
 
     [HttpGet("api/payments/{id:int}")]

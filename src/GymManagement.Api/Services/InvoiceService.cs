@@ -92,6 +92,8 @@ public sealed class InvoiceService(GymDbContext dbContext) : IInvoiceService
 
     public async Task<PagedResponse<InvoiceResponse>> SearchAsync(
         int? memberId,
+        string? search,
+        InvoiceStatus? status,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
@@ -104,16 +106,57 @@ public sealed class InvoiceService(GymDbContext dbContext) : IInvoiceService
             query = query.Where(invoice => invoice.MemberId == memberId.Value);
         }
 
+        if (status.HasValue)
+        {
+            query = query.Where(invoice => invoice.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            var numericTerm = int.TryParse(term.TrimStart('#'), out var parsedId) ? parsedId : (int?)null;
+            var matchingMemberIds = dbContext.Members.AsNoTracking()
+                .Where(member =>
+                    member.FirstName.Contains(term) ||
+                    member.LastName.Contains(term) ||
+                    (member.Phone != null && member.Phone.Contains(term)) ||
+                    (member.Email != null && member.Email.Contains(term)))
+                .Select(member => member.Id);
+
+            query = query.Where(invoice =>
+                invoice.Number.Contains(term) ||
+                invoice.PlanNameSnapshot.Contains(term) ||
+                matchingMemberIds.Contains(invoice.MemberId) ||
+                (numericTerm.HasValue && invoice.MemberId == numericTerm.Value));
+        }
+
         var totalCount = await query.CountAsync(cancellationToken);
         var invoices = await query
             .OrderByDescending(invoice => invoice.CreatedAtUtc)
             .ThenByDescending(invoice => invoice.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(invoice => ToResponse(invoice))
             .ToListAsync(cancellationToken);
 
-        return new PagedResponse<InvoiceResponse>(page, pageSize, totalCount, invoices);
+        // Enrich the current page with member display info so the UI doesn't need to load every member.
+        var memberIds = invoices.Select(invoice => invoice.MemberId).Distinct().ToList();
+        var members = await dbContext.Members.AsNoTracking()
+            .Where(member => memberIds.Contains(member.Id))
+            .Select(member => new { member.Id, member.FirstName, member.LastName, member.Phone, member.Email })
+            .ToDictionaryAsync(member => member.Id, cancellationToken);
+
+        var items = invoices
+            .Select(invoice => members.TryGetValue(invoice.MemberId, out var member)
+                ? ToResponse(invoice) with
+                {
+                    MemberName = $"{member.FirstName} {member.LastName}".Trim(),
+                    MemberPhone = member.Phone,
+                    MemberEmail = member.Email,
+                }
+                : ToResponse(invoice))
+            .ToList();
+
+        return new PagedResponse<InvoiceResponse>(page, pageSize, totalCount, items);
     }
 
     private static InvoiceResponse ToResponse(Invoice invoice) => new(

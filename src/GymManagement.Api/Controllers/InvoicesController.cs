@@ -16,11 +16,13 @@ public sealed class InvoicesController(IInvoiceService invoiceService) : Control
     [ProducesResponseType(typeof(PagedResponse<InvoiceResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<InvoiceResponse>>> Search(
         [FromQuery] int? memberId,
+        [FromQuery] string? search,
+        [FromQuery] GymManagement.Api.Models.InvoiceStatus? status,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await invoiceService.SearchAsync(memberId, page, pageSize, cancellationToken));
+        return Ok(await invoiceService.SearchAsync(memberId, search, status, page, pageSize, cancellationToken));
     }
 
     [HttpGet("{id:int}")]

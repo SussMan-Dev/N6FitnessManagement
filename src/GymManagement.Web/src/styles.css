@@ -3474,3 +3474,44 @@ h1, h2, h3, .brand, .metric strong { font-family: 'Space Grotesk', 'Trebuchet MS
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* Pagination */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  padding: 12px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 12px;
+}
+.pagination-summary strong { color: #ffffff; font-weight: 700; }
+.pagination-controls { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pagination-btn {
+  min-width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.pagination-btn:hover:not(:disabled) { color: #ffffff; border-color: rgba(212, 255, 0, 0.35); }
+.pagination-btn.active { background: var(--lime); border-color: var(--lime); color: #080c14; font-weight: 700; }
+.pagination-btn:disabled { opacity: .35; cursor: not-allowed; }
+.pagination-gap { min-width: 20px; text-align: center; color: var(--muted); }
+.pagination-size { display: inline-flex; align-items: center; gap: 8px; }
+.pagination-size select { width: auto; min-height: 32px; padding: 4px 10px; font-size: 12px; }
+@media (max-width: 640px) {
+  .pagination-bar { justify-content: center; }
+  .pagination-summary { width: 100%; text-align: center; }
+}

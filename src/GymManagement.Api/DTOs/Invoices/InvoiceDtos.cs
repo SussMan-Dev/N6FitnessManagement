@@ -19,7 +19,10 @@ public sealed record InvoiceResponse(
     decimal TotalAmount,
     InvoiceStatus Status,
     DateTime CreatedAtUtc,
-    DateTime? PaidAtUtc);
+    DateTime? PaidAtUtc,
+    string? MemberName = null,
+    string? MemberPhone = null,
+    string? MemberEmail = null);
 
 public enum InvoiceError
 {

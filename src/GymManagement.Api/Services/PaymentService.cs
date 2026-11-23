@@ -258,6 +258,7 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
 
     public async Task<PagedResponse<PaymentResponse>> SearchAsync(
         int? invoiceId,
+        PaymentStatus? status,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
@@ -270,16 +271,34 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
             query = query.Where(payment => payment.InvoiceId == invoiceId.Value);
         }
 
+        if (status.HasValue)
+        {
+            query = query.Where(payment => payment.Status == status.Value);
+        }
+
         var totalCount = await query.CountAsync(cancellationToken);
         var payments = await query
             .OrderByDescending(payment => payment.CreatedAtUtc)
             .ThenByDescending(payment => payment.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(payment => ToResponse(payment))
             .ToListAsync(cancellationToken);
 
-        return new PagedResponse<PaymentResponse>(page, pageSize, totalCount, payments);
+        // Enrich the current page with invoice numbers so the UI doesn't need to load every invoice.
+        var invoiceIds = payments.Select(payment => payment.InvoiceId).Distinct().ToList();
+        var invoiceNumbers = await dbContext.Invoices.AsNoTracking()
+            .Where(invoice => invoiceIds.Contains(invoice.Id))
+            .Select(invoice => new { invoice.Id, invoice.Number })
+            .ToDictionaryAsync(invoice => invoice.Id, invoice => invoice.Number, cancellationToken);
+
+        var items = payments
+            .Select(payment => ToResponse(payment) with
+            {
+                InvoiceNumber = invoiceNumbers.GetValueOrDefault(payment.InvoiceId),
+            })
+            .ToList();
+
+        return new PagedResponse<PaymentResponse>(page, pageSize, totalCount, items);
     }
 
     private static PaymentResponse ToResponse(Payment payment) => new(
