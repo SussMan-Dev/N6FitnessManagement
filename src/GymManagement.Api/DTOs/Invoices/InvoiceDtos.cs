@@ -22,7 +22,14 @@ public sealed record InvoiceResponse(
     DateTime? PaidAtUtc,
     string? MemberName = null,
     string? MemberPhone = null,
-    string? MemberEmail = null);
+    string? MemberEmail = null,
+    decimal PaidAmount = 0m);
+
+public sealed record InvoiceSummaryResponse(
+    int PendingCount,
+    int PaidCount,
+    decimal TotalOutstandingDebt,
+    decimal TotalCollected);
 
 public enum InvoiceError
 {
@@ -33,5 +40,7 @@ public enum InvoiceError
     SubscriptionNotPendingPayment,
     PlanNotFound,
     PlanNotActive,
-    InvoiceAlreadyExists
+    InvoiceAlreadyExists,
+    InvoiceNotVoidable,
+    InvoiceHasConfirmedPayments
 }

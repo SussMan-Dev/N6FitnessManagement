@@ -22,6 +22,12 @@ public sealed record SubscriptionResponse(
     DateTime CreatedAtUtc,
     SubscriptionStatus Status);
 
+public sealed class FreezeSubscriptionRequest
+{
+    [Range(1, 90)]
+    public int Days { get; init; }
+}
+
 public enum SubscriptionError
 {
     MemberNotFound,
@@ -30,5 +36,8 @@ public enum SubscriptionError
     PlanNotActive,
     SubscriptionNotFound,
     SubscriptionNotRenewable,
-    PendingRenewalExists
+    PendingRenewalExists,
+    SubscriptionNotCancellable,
+    SubscriptionHasConfirmedPayments,
+    SubscriptionNotActive
 }

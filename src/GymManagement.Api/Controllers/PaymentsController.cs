@@ -17,11 +17,14 @@ public sealed class PaymentsController(IPaymentService paymentService, IFileServ
     public async Task<ActionResult<PagedResponse<PaymentResponse>>> Search(
         [FromQuery] int? invoiceId,
         [FromQuery] GymManagement.Api.Models.PaymentStatus? status,
+        [FromQuery] string? search,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await paymentService.SearchAsync(invoiceId, status, page, pageSize, cancellationToken));
+        return Ok(await paymentService.SearchAsync(invoiceId, status, search, from, to, page, pageSize, cancellationToken));
     }
 
     [HttpGet("api/payments/{id:int}")]
@@ -182,6 +185,10 @@ public sealed class PaymentsController(IPaymentService paymentService, IFileServ
     {
         PaymentError.InvoiceNotFound or PaymentError.PaymentNotFound or PaymentError.FileNotFound =>
             NotFound(new ProblemDetails { Title = error.ToString() }),
+        PaymentError.AmountMismatch =>
+            Conflict(new ProblemDetails { Title = "Số tiền thanh toán vượt quá số tiền còn phải thu của hóa đơn." }),
+        PaymentError.TransferReferenceRequired =>
+            Conflict(new ProblemDetails { Title = "Vui lòng nhập mã giao dịch ngân hàng cho hình thức chuyển khoản." }),
         _ => Conflict(new ProblemDetails { Title = error.ToString() })
     };
 }

@@ -77,4 +77,14 @@ public sealed class TrainersController(ITrainerService trainerService) : Control
         var updated = await trainerService.UpdateStatusAsync(id, request.IsActive, cancellationToken);
         return updated ? NoContent() : NotFound();
     }
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var deleted = await trainerService.DeleteAsync(id, cancellationToken);
+        return deleted ? NoContent() : NotFound();
+    }
 }

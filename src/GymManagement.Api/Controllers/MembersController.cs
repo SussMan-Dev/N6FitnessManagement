@@ -42,7 +42,12 @@ public sealed class MembersController(IMemberService memberService) : Controller
         var result = await memberService.CreateAsync(request, cancellationToken);
         if (result.EmailConflict)
         {
-            return Conflict(new ProblemDetails { Title = "Email is already in use." });
+            return Conflict(new ProblemDetails { Title = "Email này đã được sử dụng bởi hội viên khác." });
+        }
+
+        if (result.PhoneConflict)
+        {
+            return Conflict(new ProblemDetails { Title = "Số điện thoại này đã được sử dụng bởi hội viên khác." });
         }
 
         return CreatedAtAction(nameof(GetById), new { id = result.Member!.Id }, result.Member);
@@ -60,7 +65,12 @@ public sealed class MembersController(IMemberService memberService) : Controller
         var result = await memberService.UpdateAsync(id, request, cancellationToken);
         if (result.EmailConflict)
         {
-            return Conflict(new ProblemDetails { Title = "Email is already in use." });
+            return Conflict(new ProblemDetails { Title = "Email này đã được sử dụng bởi hội viên khác." });
+        }
+
+        if (result.PhoneConflict)
+        {
+            return Conflict(new ProblemDetails { Title = "Số điện thoại này đã được sử dụng bởi hội viên khác." });
         }
 
         return result.Member is null ? NotFound() : Ok(result.Member);
@@ -76,5 +86,24 @@ public sealed class MembersController(IMemberService memberService) : Controller
     {
         var updated = await memberService.UpdateStatusAsync(id, request.Status, cancellationToken);
         return updated ? NoContent() : NotFound();
+    }
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var (deleted, hasRelatedRecords) = await memberService.DeleteAsync(id, cancellationToken);
+        if (hasRelatedRecords)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Không thể xóa hội viên đã có đăng ký gói tập, hóa đơn hoặc lịch sử check-in. Vui lòng chuyển sang Tạm ngừng."
+            });
+        }
+
+        return deleted ? NoContent() : NotFound();
     }
 }

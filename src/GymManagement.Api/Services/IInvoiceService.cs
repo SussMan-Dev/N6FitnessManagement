@@ -16,7 +16,13 @@ public interface IInvoiceService
         int? memberId,
         string? search,
         GymManagement.Api.Models.InvoiceStatus? status,
+        DateOnly? from,
+        DateOnly? to,
         int page,
         int pageSize,
         CancellationToken cancellationToken);
+
+    Task<InvoiceSummaryResponse> GetSummaryAsync(CancellationToken cancellationToken);
+
+    Task<(InvoiceResponse? Invoice, InvoiceError? Error)> VoidAsync(int id, CancellationToken cancellationToken);
 }

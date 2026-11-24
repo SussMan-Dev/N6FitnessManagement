@@ -87,13 +87,37 @@ public sealed class InvoiceService(GymDbContext dbContext) : IInvoiceService
     {
         var invoice = await dbContext.Invoices.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
-        return invoice is null ? null : ToResponse(invoice);
+        if (invoice is null)
+        {
+            return null;
+        }
+
+        var paidAmount = await dbContext.Payments.AsNoTracking()
+            .Where(payment => payment.InvoiceId == id && payment.Status == PaymentStatus.Confirmed)
+            .SumAsync(payment => (decimal?)payment.Amount, cancellationToken) ?? 0m;
+
+        var member = await dbContext.Members.AsNoTracking()
+            .Where(m => m.Id == invoice.MemberId)
+            .Select(m => new { m.FirstName, m.LastName, m.Phone, m.Email })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        var dto = ToResponse(invoice) with { PaidAmount = paidAmount };
+        return member is null
+            ? dto
+            : dto with
+            {
+                MemberName = $"{member.FirstName} {member.LastName}".Trim(),
+                MemberPhone = member.Phone,
+                MemberEmail = member.Email,
+            };
     }
 
     public async Task<PagedResponse<InvoiceResponse>> SearchAsync(
         int? memberId,
         string? search,
         InvoiceStatus? status,
+        DateOnly? from,
+        DateOnly? to,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
@@ -109,6 +133,18 @@ public sealed class InvoiceService(GymDbContext dbContext) : IInvoiceService
         if (status.HasValue)
         {
             query = query.Where(invoice => invoice.Status == status.Value);
+        }
+
+        if (from.HasValue)
+        {
+            var startUtc = GymClock.VietnamDayStartUtc(from.Value);
+            query = query.Where(invoice => invoice.CreatedAtUtc >= startUtc);
+        }
+
+        if (to.HasValue)
+        {
+            var endExclusiveUtc = GymClock.VietnamDayEndExclusiveUtc(to.Value);
+            query = query.Where(invoice => invoice.CreatedAtUtc < endExclusiveUtc);
         }
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -138,25 +174,102 @@ public sealed class InvoiceService(GymDbContext dbContext) : IInvoiceService
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // Enrich the current page with member display info so the UI doesn't need to load every member.
+        // Enrich the current page with member display info and confirmed paid amounts.
         var memberIds = invoices.Select(invoice => invoice.MemberId).Distinct().ToList();
         var members = await dbContext.Members.AsNoTracking()
             .Where(member => memberIds.Contains(member.Id))
             .Select(member => new { member.Id, member.FirstName, member.LastName, member.Phone, member.Email })
             .ToDictionaryAsync(member => member.Id, cancellationToken);
 
+        var invoiceIds = invoices.Select(invoice => invoice.Id).ToList();
+        var paidByInvoice = await dbContext.Payments.AsNoTracking()
+            .Where(payment => invoiceIds.Contains(payment.InvoiceId) && payment.Status == PaymentStatus.Confirmed)
+            .GroupBy(payment => payment.InvoiceId)
+            .Select(group => new { InvoiceId = group.Key, Paid = group.Sum(payment => payment.Amount) })
+            .ToDictionaryAsync(item => item.InvoiceId, item => item.Paid, cancellationToken);
+
         var items = invoices
-            .Select(invoice => members.TryGetValue(invoice.MemberId, out var member)
-                ? ToResponse(invoice) with
-                {
-                    MemberName = $"{member.FirstName} {member.LastName}".Trim(),
-                    MemberPhone = member.Phone,
-                    MemberEmail = member.Email,
-                }
-                : ToResponse(invoice))
+            .Select(invoice =>
+            {
+                var paid = paidByInvoice.GetValueOrDefault(invoice.Id, 0m);
+                var dto = ToResponse(invoice) with { PaidAmount = paid };
+                return members.TryGetValue(invoice.MemberId, out var member)
+                    ? dto with
+                    {
+                        MemberName = $"{member.FirstName} {member.LastName}".Trim(),
+                        MemberPhone = member.Phone,
+                        MemberEmail = member.Email,
+                    }
+                    : dto;
+            })
             .ToList();
 
         return new PagedResponse<InvoiceResponse>(page, pageSize, totalCount, items);
+    }
+
+    public async Task<InvoiceSummaryResponse> GetSummaryAsync(CancellationToken cancellationToken)
+    {
+        var pendingInvoices = await dbContext.Invoices.AsNoTracking()
+            .Where(i => i.Status == InvoiceStatus.PendingPayment)
+            .Select(i => new { i.Id, i.TotalAmount })
+            .ToListAsync(cancellationToken);
+
+        var pendingIds = pendingInvoices.Select(i => i.Id).ToList();
+        var pendingPaid = pendingIds.Count == 0
+            ? 0m
+            : await dbContext.Payments.AsNoTracking()
+                .Where(p => pendingIds.Contains(p.InvoiceId) && p.Status == PaymentStatus.Confirmed)
+                .SumAsync(p => (decimal?)p.Amount, cancellationToken) ?? 0m;
+
+        var totalPendingValue = pendingInvoices.Sum(i => decimal.Truncate(i.TotalAmount));
+        var outstandingDebt = Math.Max(0m, totalPendingValue - pendingPaid);
+
+        var paidCount = await dbContext.Invoices.AsNoTracking()
+            .CountAsync(i => i.Status == InvoiceStatus.Paid, cancellationToken);
+        var totalCollected = await dbContext.Payments.AsNoTracking()
+            .Where(p => p.Status == PaymentStatus.Confirmed)
+            .SumAsync(p => (decimal?)p.Amount, cancellationToken) ?? 0m;
+
+        return new InvoiceSummaryResponse(pendingInvoices.Count, paidCount, outstandingDebt, totalCollected);
+    }
+
+    public async Task<(InvoiceResponse? Invoice, InvoiceError? Error)> VoidAsync(int id, CancellationToken cancellationToken)
+    {
+        var invoice = await dbContext.Invoices.SingleOrDefaultAsync(i => i.Id == id, cancellationToken);
+        if (invoice is null)
+        {
+            return (null, InvoiceError.InvoiceNotFound);
+        }
+
+        if (invoice.Status != InvoiceStatus.PendingPayment)
+        {
+            return (null, InvoiceError.InvoiceNotVoidable);
+        }
+
+        var hasConfirmedPayments = await dbContext.Payments.AnyAsync(
+            p => p.InvoiceId == id && p.Status == PaymentStatus.Confirmed,
+            cancellationToken);
+        if (hasConfirmedPayments)
+        {
+            return (null, InvoiceError.InvoiceHasConfirmedPayments);
+        }
+
+        // Also reject any unconfirmed pending payments tied to this voided invoice
+        var pendingPayments = await dbContext.Payments
+            .Where(p => p.InvoiceId == id && p.Status == PaymentStatus.PendingConfirmation)
+            .ToListAsync(cancellationToken);
+        foreach (var p in pendingPayments)
+        {
+            p.Status = PaymentStatus.Rejected;
+            p.AdjustmentReason = "Hóa đơn đã bị hủy.";
+            p.ReviewedAtUtc = DateTime.UtcNow;
+            p.Version++;
+        }
+
+        invoice.Status = InvoiceStatus.Voided;
+        invoice.Version++;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return (ToResponse(invoice), null);
     }
 
     private static InvoiceResponse ToResponse(Invoice invoice) => new(

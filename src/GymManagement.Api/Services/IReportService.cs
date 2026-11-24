@@ -11,4 +11,13 @@ public interface IReportService
     Task<CheckInReportResponse> GetCheckInsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
 
     Task<DashboardReportResponse> GetDashboardAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ExpiringSubscriptionItemResponse>> GetExpiringSubscriptionsAsync(
+        int withinDays,
+        CancellationToken cancellationToken);
+
+    Task<ReportAnalyticsResponse> GetAnalyticsAsync(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken);
 }

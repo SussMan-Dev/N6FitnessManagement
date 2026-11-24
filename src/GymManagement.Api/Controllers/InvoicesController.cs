@@ -18,11 +18,20 @@ public sealed class InvoicesController(IInvoiceService invoiceService) : Control
         [FromQuery] int? memberId,
         [FromQuery] string? search,
         [FromQuery] GymManagement.Api.Models.InvoiceStatus? status,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await invoiceService.SearchAsync(memberId, search, status, page, pageSize, cancellationToken));
+        return Ok(await invoiceService.SearchAsync(memberId, search, status, from, to, page, pageSize, cancellationToken));
+    }
+
+    [HttpGet("summary")]
+    [ProducesResponseType(typeof(InvoiceSummaryResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<InvoiceSummaryResponse>> Summary(CancellationToken cancellationToken = default)
+    {
+        return Ok(await invoiceService.GetSummaryAsync(cancellationToken));
     }
 
     [HttpGet("{id:int}")]
@@ -32,6 +41,27 @@ public sealed class InvoicesController(IInvoiceService invoiceService) : Control
     {
         var invoice = await invoiceService.GetByIdAsync(id, cancellationToken);
         return invoice is null ? NotFound() : Ok(invoice);
+    }
+
+    [HttpPost("{id:int}/void")]
+    [ProducesResponseType(typeof(InvoiceResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<InvoiceResponse>> Void(int id, CancellationToken cancellationToken)
+    {
+        var (invoice, error) = await invoiceService.VoidAsync(id, cancellationToken);
+        if (error is not null)
+        {
+            return error switch
+            {
+                InvoiceError.InvoiceNotFound => NotFound(new ProblemDetails { Title = "Không tìm thấy hóa đơn." }),
+                InvoiceError.InvoiceHasConfirmedPayments => Conflict(new ProblemDetails { Title = "Không thể hủy hóa đơn đã có khoản thanh toán được xác nhận." }),
+                InvoiceError.InvoiceNotVoidable => Conflict(new ProblemDetails { Title = "Chỉ có thể hủy hóa đơn đang ở trạng thái Chờ thanh toán." }),
+                _ => Conflict(new ProblemDetails { Title = error.Value.ToString() })
+            };
+        }
+
+        return Ok(invoice);
     }
 
     [HttpPost]

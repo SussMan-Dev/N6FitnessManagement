@@ -28,6 +28,7 @@ import { ToastProvider } from './toast';
 import {
   CheckInsPage,
   DashboardPage,
+  InvoiceDetailPage,
   InvoicesPage,
   PaymentsPage,
   ReportsPage,
@@ -274,6 +275,7 @@ function App() {
           <Route path="trainers" element={<ResourcePage type="trainers" />} />
           <Route path="subscriptions" element={<SubscriptionsPage />} />
           <Route path="invoices" element={<InvoicesPage />} />
+          <Route path="invoices/:id" element={<InvoiceDetailPage />} />
           <Route path="payments" element={<PaymentsPage />} />
           <Route path="checkins" element={<CheckInsPage />} />
           <Route path="reports" element={<ReportsPage />} />

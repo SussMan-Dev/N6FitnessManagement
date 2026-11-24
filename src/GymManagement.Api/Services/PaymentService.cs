@@ -28,6 +28,15 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
             return (null, PaymentError.InvoiceNotPayable);
         }
 
+        var confirmedPaid = await dbContext.Payments.AsNoTracking()
+            .Where(item => item.InvoiceId == invoice.Id && item.Status == PaymentStatus.Confirmed)
+            .SumAsync(item => (decimal?)item.Amount, cancellationToken) ?? 0m;
+        var remaining = decimal.Truncate(invoice.TotalAmount) - confirmedPaid;
+        if (request.Amount <= 0 || request.Amount > remaining)
+        {
+            return (null, PaymentError.AmountMismatch);
+        }
+
         if (request.ReceiptFileId.HasValue)
         {
             var fileExists = await dbContext.StoredFiles.AnyAsync(f => f.Id == request.ReceiptFileId.Value, cancellationToken);
@@ -84,7 +93,12 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
             return (null, PaymentError.InvoiceNotPayable);
         }
 
-        if (payment.Amount != invoice.TotalAmount)
+        var alreadyConfirmed = await dbContext.Payments
+            .Where(item => item.InvoiceId == invoice.Id && item.Status == PaymentStatus.Confirmed)
+            .SumAsync(item => (decimal?)item.Amount, cancellationToken) ?? 0m;
+        var invoiceTarget = decimal.Truncate(invoice.TotalAmount);
+        var newTotalConfirmed = alreadyConfirmed + payment.Amount;
+        if (newTotalConfirmed > invoiceTarget)
         {
             return (null, PaymentError.AmountMismatch);
         }
@@ -95,44 +109,59 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
             return (null, PaymentError.TransferReferenceRequired);
         }
 
-        var subscription = await dbContext.Subscriptions.SingleOrDefaultAsync(
-            item => item.Id == invoice.SubscriptionId,
-            cancellationToken);
-        if (subscription is null || subscription.Status != SubscriptionStatus.PendingPayment)
-        {
-            return (null, PaymentError.SubscriptionNotPendingPayment);
-        }
-
-        var member = await dbContext.Members.SingleOrDefaultAsync(item => item.Id == invoice.MemberId, cancellationToken);
-        if (member is null || member.Status != MemberStatus.Active)
-        {
-            return (null, PaymentError.MemberNotActive);
-        }
-
+        var isFullyPaid = newTotalConfirmed >= invoiceTarget;
+        var shouldActivate = isFullyPaid || request.ActivateSubscriptionNow;
         var now = DateTime.UtcNow;
-        var today = DateOnly.FromDateTime(now);
-        var startDate = today;
-        if (subscription.RenewedFromSubscriptionId is int previousId)
-        {
-            var previous = await dbContext.Subscriptions.AsNoTracking()
-                .SingleOrDefaultAsync(item => item.Id == previousId, cancellationToken);
-            if (previous?.EndsOn is DateOnly previousEnd && previousEnd >= today)
-            {
-                startDate = previousEnd.AddDays(1);
-            }
-        }
 
         payment.Status = PaymentStatus.Confirmed;
         payment.Reference = reference;
         payment.ReviewedByUserId = reviewedByUserId;
         payment.ReviewedAtUtc = now;
         payment.Version++;
-        invoice.Status = InvoiceStatus.Paid;
-        invoice.PaidAtUtc = now;
-        invoice.Version++;
-        subscription.Status = SubscriptionStatus.Active;
-        subscription.StartsOn = startDate;
-        subscription.EndsOn = startDate.AddDays(invoice.PlanDurationDaysSnapshot - 1);
+
+        if (shouldActivate)
+        {
+            var subscription = await dbContext.Subscriptions.SingleOrDefaultAsync(
+                item => item.Id == invoice.SubscriptionId,
+                cancellationToken);
+            if (subscription is null ||
+                subscription.Status is not (SubscriptionStatus.PendingPayment or SubscriptionStatus.Active))
+            {
+                return (null, PaymentError.SubscriptionNotPendingPayment);
+            }
+
+            if (subscription.Status == SubscriptionStatus.PendingPayment)
+            {
+                var member = await dbContext.Members.SingleOrDefaultAsync(item => item.Id == invoice.MemberId, cancellationToken);
+                if (member is null || member.Status != MemberStatus.Active)
+                {
+                    return (null, PaymentError.MemberNotActive);
+                }
+
+                var today = GymClock.TodayVietnam(now);
+                var startDate = today;
+                if (subscription.RenewedFromSubscriptionId is int previousId)
+                {
+                    var previous = await dbContext.Subscriptions.AsNoTracking()
+                        .SingleOrDefaultAsync(item => item.Id == previousId, cancellationToken);
+                    if (previous?.EndsOn is DateOnly previousEnd && previousEnd >= today)
+                    {
+                        startDate = previousEnd.AddDays(1);
+                    }
+                }
+
+                subscription.Status = SubscriptionStatus.Active;
+                subscription.StartsOn = startDate;
+                subscription.EndsOn = startDate.AddDays(invoice.PlanDurationDaysSnapshot - 1);
+            }
+        }
+
+        if (isFullyPaid)
+        {
+            invoice.Status = InvoiceStatus.Paid;
+            invoice.PaidAtUtc = now;
+            invoice.Version++;
+        }
 
         try
         {
@@ -259,6 +288,9 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
     public async Task<PagedResponse<PaymentResponse>> SearchAsync(
         int? invoiceId,
         PaymentStatus? status,
+        string? search,
+        DateOnly? from,
+        DateOnly? to,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
@@ -276,6 +308,49 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
             query = query.Where(payment => payment.Status == status.Value);
         }
 
+        if (from.HasValue)
+        {
+            var startUtc = GymClock.VietnamDayStartUtc(from.Value);
+            query = query.Where(payment => payment.CreatedAtUtc >= startUtc);
+        }
+
+        if (to.HasValue)
+        {
+            var endExclusiveUtc = GymClock.VietnamDayEndExclusiveUtc(to.Value);
+            query = query.Where(payment => payment.CreatedAtUtc < endExclusiveUtc);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            var stripped = term.TrimStart('#');
+            if (stripped.StartsWith("PAY-", StringComparison.OrdinalIgnoreCase))
+            {
+                stripped = stripped[4..];
+            }
+
+            var numericTerm = int.TryParse(stripped, out var parsedId) ? parsedId : (int?)null;
+            var matchingMemberIds = dbContext.Members.AsNoTracking()
+                .Where(member =>
+                    member.FirstName.Contains(term) ||
+                    member.LastName.Contains(term) ||
+                    (member.Phone != null && member.Phone.Contains(term)) ||
+                    (member.Email != null && member.Email.Contains(term)) ||
+                    (numericTerm.HasValue && member.Id == numericTerm.Value))
+                .Select(member => member.Id);
+
+            var matchingInvoiceIds = dbContext.Invoices.AsNoTracking()
+                .Where(invoice =>
+                    invoice.Number.Contains(term) ||
+                    matchingMemberIds.Contains(invoice.MemberId))
+                .Select(invoice => invoice.Id);
+
+            query = query.Where(payment =>
+                (payment.Reference != null && payment.Reference.Contains(term)) ||
+                matchingInvoiceIds.Contains(payment.InvoiceId) ||
+                (numericTerm.HasValue && payment.Id == numericTerm.Value));
+        }
+
         var totalCount = await query.CountAsync(cancellationToken);
         var payments = await query
             .OrderByDescending(payment => payment.CreatedAtUtc)
@@ -284,17 +359,54 @@ public sealed class PaymentService(GymDbContext dbContext) : IPaymentService
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // Enrich the current page with invoice numbers so the UI doesn't need to load every invoice.
+        // Enrich the current page with invoice numbers and member display info.
         var invoiceIds = payments.Select(payment => payment.InvoiceId).Distinct().ToList();
-        var invoiceNumbers = await dbContext.Invoices.AsNoTracking()
+        var invoiceInfos = await dbContext.Invoices.AsNoTracking()
             .Where(invoice => invoiceIds.Contains(invoice.Id))
-            .Select(invoice => new { invoice.Id, invoice.Number })
-            .ToDictionaryAsync(invoice => invoice.Id, invoice => invoice.Number, cancellationToken);
+            .Select(invoice => new { invoice.Id, invoice.Number, invoice.MemberId })
+            .ToDictionaryAsync(invoice => invoice.Id, cancellationToken);
+
+        var memberIds = invoiceInfos.Values.Select(info => info.MemberId).Distinct().ToList();
+        var members = await dbContext.Members.AsNoTracking()
+            .Where(member => memberIds.Contains(member.Id))
+            .Select(member => new { member.Id, member.FirstName, member.LastName, member.Phone })
+            .ToDictionaryAsync(member => member.Id, cancellationToken);
+
+        var staffIds = payments
+            .SelectMany(p => p.ReviewedByUserId.HasValue ? new[] { p.CreatedByUserId, p.ReviewedByUserId.Value } : new[] { p.CreatedByUserId })
+            .Distinct()
+            .ToList();
+        var staffNames = await dbContext.Users.AsNoTracking()
+            .Where(u => staffIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName })
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, cancellationToken);
 
         var items = payments
-            .Select(payment => ToResponse(payment) with
+            .Select(payment =>
             {
-                InvoiceNumber = invoiceNumbers.GetValueOrDefault(payment.InvoiceId),
+                staffNames.TryGetValue(payment.CreatedByUserId, out var createdByName);
+                string? reviewedByName = payment.ReviewedByUserId.HasValue
+                    ? staffNames.GetValueOrDefault(payment.ReviewedByUserId.Value)
+                    : null;
+
+                if (!invoiceInfos.TryGetValue(payment.InvoiceId, out var inv))
+                {
+                    return ToResponse(payment) with
+                    {
+                        CreatedByName = createdByName,
+                        ReviewedByName = reviewedByName,
+                    };
+                }
+
+                members.TryGetValue(inv.MemberId, out var member);
+                return ToResponse(payment) with
+                {
+                    InvoiceNumber = inv.Number,
+                    MemberName = member is null ? null : $"{member.FirstName} {member.LastName}".Trim(),
+                    MemberPhone = member?.Phone,
+                    CreatedByName = createdByName,
+                    ReviewedByName = reviewedByName,
+                };
             })
             .ToList();
 

@@ -15,4 +15,10 @@ public interface ICheckInService
         int page,
         int pageSize,
         CancellationToken cancellationToken);
+
+    Task<PagedResponse<CheckInResponse>> GetByDateAsync(
+        DateOnly date,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken);
 }

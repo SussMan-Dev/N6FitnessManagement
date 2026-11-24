@@ -14,7 +14,6 @@ import {
   Dumbbell,
   HelpCircle,
   Lock,
-  LogIn,
   Mail,
   MapPin,
   Phone,
@@ -22,11 +21,14 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Upload,
   User,
   Users,
+  X,
 } from 'lucide-react';
 import { Link, NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom';
-import { api, formatDate, formatMoney, dateInputValue } from './api';
+import { api, formatDate, formatMoney, dateInputValue, uploadPortalReceipt } from './api';
+import { Pagination, paginate, usePagination } from './pagination';
 
 export function PortalLayout() {
   return (
@@ -63,9 +65,6 @@ export function PortalLayout() {
           <div className="portal-header-actions">
             <Link to="/portal/register" className="button button-primary portal-cta-btn">
               <Sparkles size={16} /> Đăng ký ngay
-            </Link>
-            <Link to="/login" className="portal-staff-link" title="Đăng nhập tài khoản nhân viên / quản trị">
-              <LogIn size={16} /> Quản trị
             </Link>
           </div>
         </div>
@@ -115,7 +114,6 @@ export function PortalLayout() {
               <Link to="/portal/plans">Bảng giá</Link>
               <Link to="/portal/register">Đăng ký online</Link>
               <Link to="/portal/lookup">Tra cứu</Link>
-              <Link to="/login">Nhân viên</Link>
             </div>
           </div>
         </div>
@@ -180,7 +178,7 @@ export function PortalPlansPage() {
             </div>
             <div className="portal-stat-divider" />
             <div className="portal-stat-item">
-              <strong>5.000+</strong>
+              <strong>500</strong>
               <span>Hội viên đang tập luyện</span>
             </div>
             <div className="portal-stat-divider" />
@@ -223,8 +221,8 @@ export function PortalPlansPage() {
         {!loading && !error && plans.length > 0 && (
           <div className="portal-plans-grid">
             {plans.map((plan, index) => {
-              const isPopular = plan.DurationDays >= 90 && plan.DurationDays <= 180;
-              const isVip = plan.DurationDays >= 365;
+              const isPopular = plan.durationDays >= 90 && plan.durationDays <= 180;
+              const isVip = plan.durationDays >= 365;
 
               return (
                 <div
@@ -381,17 +379,21 @@ export function PortalRegisterPage() {
       const q = planSearch.toLowerCase().trim();
       const matchesSearch = !q ||
         plan.name.toLowerCase().includes(q) ||
+        String(plan.durationDays).includes(q) ||
         (plan.description && plan.description.toLowerCase().includes(q));
 
       const matchesDuration =
         durationFilter === 'all' ||
         (durationFilter === 'short' && plan.durationDays <= 31) ||
-        (durationFilter === 'medium' && plan.durationDays > 31 && plan.durationDays <= 90) ||
-        (durationFilter === 'long' && plan.durationDays > 90);
+        (durationFilter === 'medium' && plan.durationDays > 31 && plan.durationDays <= 180) ||
+        (durationFilter === 'long' && plan.durationDays > 180);
 
       return matchesSearch && matchesDuration;
     });
   }, [plans, planSearch, durationFilter]);
+
+  const planPagination = usePagination(6, [planSearch, durationFilter]);
+  const visiblePlans = paginate(filteredPlans, planPagination.page, planPagination.pageSize);
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
 
@@ -522,33 +524,56 @@ export function PortalRegisterPage() {
                 </button>
               </div>
             ) : (
-              <div className="portal-plan-select-grid">
-                {filteredPlans.map(plan => {
-                  const isSelected = plan.id === selectedPlanId;
-                  return (
-                    <div
-                      key={plan.id}
-                      className={`portal-plan-option ${isSelected ? 'selected' : ''}`}
-                      onClick={() => setSelectedPlanId(plan.id)}
-                    >
-                      <div className="option-radio">
-                        <span className={`radio-dot ${isSelected ? 'checked' : ''}`} />
-                      </div>
-                      <div className="option-info">
-                        <div className="option-header-row">
-                          <strong>{plan.name}</strong>
-                          {plan.durationDays >= 365 && <span className="plan-badge-tag">VIP</span>}
+              <>
+                <div className="portal-plan-select-grid">
+                  {visiblePlans.map(plan => {
+                    const isSelected = plan.id === selectedPlanId;
+                    return (
+                      <div
+                        key={plan.id}
+                        role="button"
+                        tabIndex={0}
+                        className={`portal-plan-option ${isSelected ? 'selected' : ''}`}
+                        onClick={() => setSelectedPlanId(plan.id)}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setSelectedPlanId(plan.id);
+                          }
+                        }}
+                      >
+                        <div className="option-radio">
+                          <span className={`radio-dot ${isSelected ? 'checked' : ''}`} />
                         </div>
-                        <div className="option-meta">
-                          <span className="option-price">{formatMoney(plan.price)}</span>
-                          <span className="option-days">· {plan.durationDays} ngày</span>
+                        <div className="option-info">
+                          <div className="option-header-row">
+                            <strong>{plan.name}</strong>
+                            {plan.durationDays >= 365 && <span className="plan-badge-tag">VIP</span>}
+                          </div>
+                          <div className="option-meta">
+                            <span className="option-price">{formatMoney(plan.price)}</span>
+                            <span className="option-days">· {plan.durationDays} ngày</span>
+                          </div>
+                          {plan.description && <p className="option-desc">{plan.description}</p>}
                         </div>
-                        {plan.description && <p className="option-desc">{plan.description}</p>}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+                {filteredPlans.length > 6 && (
+                  <div className="portal-plan-pagination">
+                    <Pagination
+                      page={planPagination.page}
+                      pageSize={planPagination.pageSize}
+                      totalCount={filteredPlans.length}
+                      onPageChange={planPagination.setPage}
+                      onPageSizeChange={planPagination.setPageSize}
+                      pageSizeOptions={[6, 12, 24]}
+                      unit="gói tập"
+                    />
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -559,7 +584,7 @@ export function PortalRegisterPage() {
             </h3>
             <div className="form-row-2">
               <label className="field-label">
-                Họ và tên đệm <span className="req">*</span>
+                <span className="field-label-text">Họ và tên đệm <span className="req">*</span></span>
                 <input
                   type="text"
                   required
@@ -570,7 +595,7 @@ export function PortalRegisterPage() {
                 />
               </label>
               <label className="field-label">
-                Tên <span className="req">*</span>
+                <span className="field-label-text">Tên <span className="req">*</span></span>
                 <input
                   type="text"
                   required
@@ -584,7 +609,7 @@ export function PortalRegisterPage() {
 
             <div className="form-row-2">
               <label className="field-label">
-                Số điện thoại liên hệ <span className="req">*</span>
+                <span className="field-label-text">Số điện thoại liên hệ <span className="req">*</span></span>
                 <input
                   type="tel"
                   required
@@ -595,7 +620,7 @@ export function PortalRegisterPage() {
                 />
               </label>
               <label className="field-label">
-                Email nhận hóa đơn & mã thẻ <span className="req">*</span>
+                <span className="field-label-text">Email nhận hóa đơn & mã thẻ <span className="req">*</span></span>
                 <input
                   type="email"
                   required
@@ -609,7 +634,7 @@ export function PortalRegisterPage() {
 
             <div className="form-row-2">
               <label className="field-label">
-                Ngày sinh
+                <span className="field-label-text">Ngày sinh</span>
                 <input
                   type="date"
                   value={birthDate}
@@ -617,7 +642,7 @@ export function PortalRegisterPage() {
                 />
               </label>
               <label className="field-label">
-                Ngày bắt đầu tập <span className="req">*</span>
+                <span className="field-label-text">Ngày bắt đầu tập <span className="req">*</span></span>
                 <input
                   type="date"
                   required
@@ -764,6 +789,9 @@ export function PortalRegisterPage() {
 function PortalSuccessView({ data, onReset }) {
   const [copiedBank, setCopiedBank] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
+  const [uploadingBill, setUploadingBill] = useState(false);
+  const [billUploaded, setBillUploaded] = useState(false);
+  const [billError, setBillError] = useState('');
   const navigate = useNavigate();
 
   function copyText(text, setter) {
@@ -772,18 +800,35 @@ function PortalSuccessView({ data, onReset }) {
     setTimeout(() => setter(false), 2000);
   }
 
+  async function handlePortalBillUpload(event) {
+    event.preventDefault();
+    const file = event.currentTarget.elements.portalReceipt?.files?.[0];
+    if (!file || !data.invoiceId) return;
+    setUploadingBill(true);
+    setBillError('');
+    try {
+      await uploadPortalReceipt(data.invoiceId, data.phone || data.email, file);
+      setBillUploaded(true);
+      event.currentTarget.reset();
+    } catch (err) {
+      setBillError(err.message || 'Không thể tải ảnh biên lai. Vui lòng thử lại.');
+    } finally {
+      setUploadingBill(false);
+    }
+  }
+
   const isBankTransfer = data.paymentMethod?.includes('Chuyển khoản');
 
   return (
     <div className="portal-container portal-success-wrap">
       <div className="portal-success-card">
-        <div className="portal-success-icon">
-          <BadgeCheck size={56} />
+        <div className="portal-success-icon" style={{ color: '#facc15' }}>
+          <Clock size={52} />
         </div>
-        <p className="eyebrow">ĐĂNG KÝ THÀNH CÔNG</p>
-        <h1>Chúc mừng bạn đã gia nhập FITNESS CENTER!</h1>
+        <p className="eyebrow" style={{ color: '#facc15' }}>ĐÃ TIẾP NHẬN ĐĂNG KÝ · CHỜ THANH TOÁN</p>
+        <h1>Đã tạo đơn đăng ký — Vui lòng hoàn tất thanh toán</h1>
         <p className="success-sub">
-          Mã đăng ký của bạn là <strong>{data.invoiceNumber}</strong>. Thông tin chi tiết đã được ghi nhận trên hệ thống.
+          Mã hóa đơn của bạn là <strong>{data.invoiceNumber}</strong>. Đơn đăng ký hiện đang ở trạng thái <strong>Chờ thanh toán</strong> — thẻ hội viên sẽ được kích hoạt chính thức sau khi bạn thanh toán đủ và được quầy lễ tân xác nhận.
         </p>
 
         {/* Member & Plan Details Box */}
@@ -799,8 +844,9 @@ function PortalSuccessView({ data, onReset }) {
             <h4>Gói tập đăng ký</h4>
             <div className="info-line"><span>Gói dịch vụ:</span> <strong>{data.planName}</strong></div>
             <div className="info-line"><span>Thời hạn:</span> <strong>{data.durationDays} ngày</strong></div>
-            <div className="info-line"><span>Thời gian tập:</span> <strong>{formatDate(data.startsOn)} → {formatDate(data.endsOn)}</strong></div>
-            <div className="info-line"><span>Tổng tiền:</span> <strong className="highlight-price">{formatMoney(data.price)}</strong></div>
+            <div className="info-line"><span>Dự kiến bắt đầu:</span> <strong>{formatDate(data.startsOn)} → {formatDate(data.endsOn)}</strong></div>
+            <div className="info-line"><span>Trạng thái đơn:</span> <span className="badge badge-warning">Chờ thanh toán</span></div>
+            <div className="info-line"><span>Cần thanh toán:</span> <strong className="highlight-price">{formatMoney(data.price)}</strong></div>
           </div>
         </div>
 
@@ -857,8 +903,29 @@ function PortalSuccessView({ data, onReset }) {
                 </div>
               </div>
               <div className="payment-note-box">
-                <p>💡 <strong>Lưu ý:</strong> Vui lòng giữ nguyên nội dung chuyển khoản để hệ thống tự động nhận diện và kích hoạt thẻ tập của bạn ngay sau khi nhận được tiền.</p>
+                <p>💡 <strong>Lưu ý:</strong> Vui lòng giữ nguyên nội dung chuyển khoản và tải ảnh biên lai bên dưới để quầy lễ tân đối soát và kích hoạt thẻ tập nhanh nhất.</p>
               </div>
+              {data.invoiceId && (
+                <form className="portal-receipt-upload-box" onSubmit={handlePortalBillUpload}>
+                  <strong><Upload size={15} /> Đã chuyển khoản? Gửi ảnh biên lai xác nhận</strong>
+                  {billUploaded ? (
+                    <p className="portal-bill-ok">✅ Đã gửi biên lai thành công! Nhân viên lễ tân đã nhận được chứng từ và sẽ kích hoạt thẻ cho bạn ngay.</p>
+                  ) : (
+                    <div className="portal-receipt-upload-row">
+                      <input
+                        name="portalReceipt"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        required
+                      />
+                      <button type="submit" className="button button-primary button-small" disabled={uploadingBill}>
+                        {uploadingBill ? 'Đang gửi…' : 'Gửi biên lai'}
+                      </button>
+                    </div>
+                  )}
+                  {billError && <p className="portal-bill-err">{billError}</p>}
+                </form>
+              )}
             </div>
           </div>
         ) : (
@@ -895,37 +962,87 @@ function PortalSuccessView({ data, onReset }) {
 
 export function PortalLookupPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialQuery = searchParams.get('query') || '';
+  const activeQuery = (searchParams.get('query') || '').trim();
 
-  const [query, setQuery] = useState(initialQuery);
+  const [query, setQuery] = useState(activeQuery);
+  const [searchVersion, setSearchVersion] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [uploadingInvId, setUploadingInvId] = useState(null);
+  const [uploadedInvIds, setUploadedInvIds] = useState(() => new Set());
+  const [uploadNotice, setUploadNotice] = useState('');
+
+  async function handleLookupBillUpload(invoiceId, file) {
+    if (!file || !activeQuery) return;
+    setUploadingInvId(invoiceId);
+    setUploadNotice('');
+    setError('');
+    try {
+      await uploadPortalReceipt(invoiceId, activeQuery, file);
+      setUploadedInvIds(prev => new Set(prev).add(invoiceId));
+      setUploadNotice('Đã gửi ảnh biên lai thành công! Nhân viên lễ tân sẽ kiểm tra và kích hoạt gói tập cho bạn.');
+    } catch (err) {
+      setError(err.message || 'Không thể tải ảnh biên lai.');
+    } finally {
+      setUploadingInvId(null);
+    }
+  }
+
+  const subPagination = usePagination(5, [result?.memberId]);
+  const invPagination = usePagination(5, [result?.memberId]);
 
   useEffect(() => {
-    if (initialQuery) {
-      handleSearch(initialQuery);
+    setQuery(activeQuery);
+    if (!activeQuery) {
+      setResult(null);
+      setError('');
+      return undefined;
     }
-  }, [initialQuery]);
 
-  async function handleSearch(searchTerm) {
-    const q = (searchTerm || query).trim();
+    let active = true;
+    setLoading(true);
+    setError('');
+    setResult(null);
+
+    api(`/portal/lookup?query=${encodeURIComponent(activeQuery)}`)
+      .then(data => {
+        if (active) setResult(data);
+      })
+      .catch(err => {
+        if (active) setError(err.message || 'Không tìm thấy thông tin hội viên tương ứng.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [activeQuery, searchVersion]);
+
+  function onSubmit(event) {
+    event.preventDefault();
+    const q = query.trim();
     if (!q) {
       setError('Vui lòng nhập Email hoặc Số điện thoại để tra cứu.');
       return;
     }
-
-    try {
-      setLoading(true);
-      setError('');
-      setResult(null);
+    if (q === activeQuery) {
+      setSearchVersion(value => value + 1);
+    } else {
       setSearchParams({ query: q });
-      const data = await api(`/portal/lookup?query=${encodeURIComponent(q)}`);
-      setResult(data);
-    } catch (err) {
-      setError(err.message || 'Không tìm thấy thông tin hội viên tương ứng.');
-    } finally {
-      setLoading(false);
+    }
+  }
+
+  function renderMemberStatus(status) {
+    switch (status) {
+      case 'Active':
+        return <span className="badge badge-success">Hội viên hoạt động</span>;
+      case 'Suspended':
+        return <span className="badge badge-error">Đang tạm khóa</span>;
+      case 'Inactive':
+        return <span className="badge badge-neutral">Tạm ngừng</span>;
+      default:
+        return <span className="badge badge-neutral">{status || '—'}</span>;
     }
   }
 
@@ -940,7 +1057,7 @@ export function PortalLookupPage() {
       case 'Cancelled':
         return <span className="badge badge-error">Đã hủy</span>;
       default:
-        return <span className="badge">{status}</span>;
+        return <span className="badge badge-neutral">{status}</span>;
     }
   }
 
@@ -953,9 +1070,12 @@ export function PortalLookupPage() {
       case 'Voided':
         return <span className="badge badge-neutral">Đã hủy bỏ</span>;
       default:
-        return <span className="badge">{status}</span>;
+        return <span className="badge badge-neutral">{status}</span>;
     }
   }
+
+  const subscriptions = result?.subscriptions || [];
+  const invoices = result?.invoices || [];
 
   return (
     <div className="portal-container portal-lookup-wrap">
@@ -966,32 +1086,27 @@ export function PortalLookupPage() {
       </div>
 
       <div className="lookup-search-card">
-        <form
-          className="lookup-search-form"
-          onSubmit={e => {
-            e.preventDefault();
-            handleSearch(query);
-          }}
-        >
-          <div className="search-input-wrap">
-            <Search size={20} className="search-icon" />
+        <form className="lookup-search-form" onSubmit={onSubmit}>
+          <div className="lookup-input-wrap">
+            <Search size={18} className="lookup-search-icon" />
             <input
               type="text"
+              className="lookup-search-input"
               placeholder="Nhập số điện thoại (ví dụ: 0988123456) hoặc email…"
               value={query}
               onChange={e => setQuery(e.target.value)}
               required
             />
           </div>
-          <button type="submit" className="button button-primary" disabled={loading}>
+          <button type="submit" className="button button-primary lookup-submit-btn" disabled={loading}>
             {loading ? <span className="spinner" /> : <Search size={18} />}
-            <span>{loading ? 'Đang tra cứu thông tin…' : 'Tra cứu thẻ tập ngay'}</span>
+            <span>{loading ? 'Đang tra cứu…' : 'Tra cứu thẻ tập'}</span>
           </button>
         </form>
       </div>
 
       {error && (
-        <div className="notice notice-error" role="alert" style={{ marginTop: '1.5rem' }}>
+        <div className="notice notice-error lookup-notice" role="alert">
           <BadgeAlert size={18} />
           <span>{error}</span>
         </div>
@@ -1002,87 +1117,153 @@ export function PortalLookupPage() {
           {/* Member Card */}
           <div className="lookup-member-card">
             <div className="member-avatar">
-              <User size={32} />
+              <User size={28} />
             </div>
             <div className="member-main-info">
-              <h2>{result.fullName}</h2>
+              <div className="member-name-line">
+                <h2>{result.fullName}</h2>
+                {renderMemberStatus(result.status)}
+              </div>
               <div className="member-meta-row">
                 <span>Mã hội viên: <strong>#MEM-{String(result.memberId).padStart(4, '0')}</strong></span>
-                <span>Số điện thoại: <strong>{result.phone || '—'}</strong></span>
+                <span>SĐT: <strong>{result.phone || '—'}</strong></span>
                 <span>Email: <strong>{result.email || '—'}</strong></span>
-                <span>Trạng thái: <span className="badge badge-success">Hội viên hoạt động</span></span>
               </div>
             </div>
             <div className="member-actions">
               <Link to="/portal/register" className="button button-primary button-small">
-                + Đăng ký thêm gói mới
+                + Đăng ký gói mới
               </Link>
             </div>
           </div>
 
           {/* Subscriptions List */}
           <div className="lookup-block">
-            <h3>Danh Sách Gói Tập Của Bạn</h3>
-            {result.subscriptions?.length === 0 ? (
-              <p className="muted">Bạn chưa có gói tập nào.</p>
+            <div className="lookup-block-header">
+              <h3>Danh Sách Gói Tập Của Bạn</h3>
+              <span className="lookup-count">{subscriptions.length} gói</span>
+            </div>
+            {subscriptions.length === 0 ? (
+              <p className="muted lookup-empty">Bạn chưa có gói tập nào.</p>
             ) : (
-              <div className="lookup-table-wrap">
-                <table className="portal-table">
-                  <thead>
-                    <tr>
-                      <th>Gói tập</th>
-                      <th>Ngày bắt đầu</th>
-                      <th>Ngày kết thúc</th>
-                      <th>Trạng thái</th>
-                      <th>Ngày đăng ký</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.subscriptions.map(sub => (
-                      <tr key={sub.subscriptionId}>
-                        <td><strong>{sub.planName}</strong></td>
-                        <td>{formatDate(sub.startsOn)}</td>
-                        <td>{formatDate(sub.endsOn)}</td>
-                        <td>{renderSubscriptionStatus(sub.status)}</td>
-                        <td className="muted">{formatDate(sub.createdAtUtc)}</td>
+              <>
+                <div className="lookup-table-wrap">
+                  <table className="portal-table">
+                    <thead>
+                      <tr>
+                        <th>Gói tập</th>
+                        <th>Ngày bắt đầu</th>
+                        <th>Ngày kết thúc</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày đăng ký</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {paginate(subscriptions, subPagination.page, subPagination.pageSize).map(sub => (
+                        <tr key={sub.subscriptionId}>
+                          <td><strong>{sub.planName}</strong></td>
+                          <td>{formatDate(sub.startsOn)}</td>
+                          <td>{formatDate(sub.endsOn)}</td>
+                          <td>{renderSubscriptionStatus(sub.status)}</td>
+                          <td className="muted">{formatDate(sub.createdAtUtc)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {subscriptions.length > 5 && (
+                  <Pagination
+                    page={subPagination.page}
+                    pageSize={subPagination.pageSize}
+                    totalCount={subscriptions.length}
+                    onPageChange={subPagination.setPage}
+                    onPageSizeChange={subPagination.setPageSize}
+                    pageSizeOptions={[5, 10, 20]}
+                    unit="gói tập"
+                  />
+                )}
+              </>
             )}
           </div>
 
           {/* Invoices List */}
           <div className="lookup-block">
-            <h3>Lịch Sử Hóa Đơn & Đơn Hàng</h3>
-            {result.invoices?.length === 0 ? (
-              <p className="muted">Chưa có hóa đơn nào.</p>
-            ) : (
-              <div className="lookup-table-wrap">
-                <table className="portal-table">
-                  <thead>
-                    <tr>
-                      <th>Mã hóa đơn</th>
-                      <th>Gói dịch vụ</th>
-                      <th>Số tiền</th>
-                      <th>Tình trạng</th>
-                      <th>Ngày tạo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.invoices.map(inv => (
-                      <tr key={inv.invoiceId}>
-                        <td><code>{inv.number}</code></td>
-                        <td>{inv.planNameSnapshot}</td>
-                        <td><strong>{formatMoney(inv.totalAmount)}</strong></td>
-                        <td>{renderInvoiceStatus(inv.status)}</td>
-                        <td className="muted">{formatDate(inv.createdAtUtc)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div className="lookup-block-header">
+              <h3>Lịch Sử Hóa Đơn & Đơn Hàng</h3>
+              <span className="lookup-count">{invoices.length} hóa đơn</span>
+            </div>
+            {uploadNotice && (
+              <div className="notice notice-success" role="status" style={{ margin: '14px 20px 0' }}>
+                <CheckCircle2 size={17} />
+                <span>{uploadNotice}</span>
               </div>
+            )}
+            {invoices.length === 0 ? (
+              <p className="muted lookup-empty">Chưa có hóa đơn nào.</p>
+            ) : (
+              <>
+                <div className="lookup-table-wrap">
+                  <table className="portal-table">
+                    <thead>
+                      <tr>
+                        <th>Mã hóa đơn</th>
+                        <th>Gói dịch vụ</th>
+                        <th>Số tiền</th>
+                        <th>Tình trạng</th>
+                        <th>Ngày tạo</th>
+                        <th>Biên lai CK</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginate(invoices, invPagination.page, invPagination.pageSize).map(inv => (
+                        <tr key={inv.invoiceId}>
+                          <td><code className="lookup-code">{inv.number}</code></td>
+                          <td>{inv.planNameSnapshot}</td>
+                          <td><strong className="lookup-amount">{formatMoney(inv.totalAmount)}</strong></td>
+                          <td>{renderInvoiceStatus(inv.status)}</td>
+                          <td className="muted">{formatDate(inv.createdAtUtc)}</td>
+                          <td>
+                            {inv.status === 'PendingPayment' ? (
+                              uploadedInvIds.has(inv.invoiceId) ? (
+                                <span className="badge badge-success">Đã gửi bill</span>
+                              ) : (
+                                <label className="button button-small button-outline" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                  <Upload size={13} />
+                                  {uploadingInvId === inv.invoiceId ? 'Đang gửi…' : 'Gửi ảnh bill'}
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                                    style={{ display: 'none' }}
+                                    disabled={uploadingInvId === inv.invoiceId}
+                                    onChange={e => {
+                                      const f = e.target.files?.[0];
+                                      if (f) handleLookupBillUpload(inv.invoiceId, f);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                              )
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {invoices.length > 5 && (
+                  <Pagination
+                    page={invPagination.page}
+                    pageSize={invPagination.pageSize}
+                    totalCount={invoices.length}
+                    onPageChange={invPagination.setPage}
+                    onPageSizeChange={invPagination.setPageSize}
+                    pageSizeOptions={[5, 10, 20]}
+                    unit="hóa đơn"
+                  />
+                )}
+              </>
             )}
           </div>
         </div>

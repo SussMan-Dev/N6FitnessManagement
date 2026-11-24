@@ -83,6 +83,70 @@ public sealed class UserManagementService(
         return (new StaffResponse(user.Id, email, user.DisplayName, ["Staff"], user.IsActive, user.LockoutEnd), []);
     }
 
+    public async Task<(StaffResponse? Staff, bool NotFound, IReadOnlyList<string> Errors)> UpdateStaffAsync(
+        int id,
+        UpdateStaffRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return (null, true, []);
+        }
+
+        var email = request.Email.Trim();
+        var existingByEmail = await userManager.FindByEmailAsync(email);
+        if (existingByEmail is not null && existingByEmail.Id != user.Id)
+        {
+            return (null, false, ["Email này đã được sử dụng bởi tài khoản khác."]);
+        }
+
+        user.DisplayName = request.DisplayName.Trim();
+        user.Email = email;
+        user.UserName = email;
+        user.NormalizedEmail = userManager.NormalizeEmail(email);
+        user.NormalizedUserName = userManager.NormalizeName(email);
+
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return (null, false, updateResult.Errors.Select(e => e.Description).ToArray());
+        }
+
+        var roles = (await userManager.GetRolesAsync(user)).ToArray();
+        return (new StaffResponse(
+            user.Id,
+            user.Email ?? user.UserName ?? string.Empty,
+            user.DisplayName,
+            roles,
+            user.IsActive,
+            user.LockoutEnd), false, []);
+    }
+
+    public async Task<(bool Succeeded, bool NotFound, IReadOnlyList<string> Errors)> ResetPasswordAsync(
+        int id,
+        ResetStaffPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return (false, true, []);
+        }
+
+        var token = await userManager.GeneratePasswordResetTokenAsync(user);
+        var resetResult = await userManager.ResetPasswordAsync(user, token, request.NewPassword);
+        if (!resetResult.Succeeded)
+        {
+            return (false, false, resetResult.Errors.Select(e => e.Description).ToArray());
+        }
+
+        await userManager.UpdateSecurityStampAsync(user);
+        return (true, false, []);
+    }
+
     public async Task<(StaffResponse? Staff, string? Error)> ToggleStaffStatusAsync(
         int id,
         CancellationToken cancellationToken)
@@ -127,5 +191,41 @@ public sealed class UserManagementService(
             roles,
             user.IsActive,
             user.LockoutEnd), null);
+    }
+
+    public async Task<(bool Deleted, bool NotFound, string? Error)> DeleteStaffAsync(
+        int id,
+        int? currentUserId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (currentUserId.HasValue && currentUserId.Value == id)
+        {
+            return (false, false, "Không thể tự xóa tài khoản đang đăng nhập.");
+        }
+
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return (false, true, null);
+        }
+
+        var roles = await userManager.GetRolesAsync(user);
+        if (roles.Contains("Admin"))
+        {
+            var admins = await userManager.GetUsersInRoleAsync("Admin");
+            if (admins.Count <= 1)
+            {
+                return (false, false, "Không thể xóa tài khoản Quản trị viên (Admin) duy nhất.");
+            }
+        }
+
+        var deleteResult = await userManager.DeleteAsync(user);
+        if (!deleteResult.Succeeded)
+        {
+            return (false, false, string.Join("; ", deleteResult.Errors.Select(e => e.Description)));
+        }
+
+        return (true, false, null);
     }
 }

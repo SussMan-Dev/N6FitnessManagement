@@ -23,6 +23,21 @@ public sealed class CreateStaffRequest
     public required string Password { get; init; }
 }
 
+public sealed class UpdateStaffRequest
+{
+    [Required, EmailAddress, StringLength(254)]
+    public required string Email { get; init; }
+
+    [Required, StringLength(120, MinimumLength = 1)]
+    public required string DisplayName { get; init; }
+}
+
+public sealed class ResetStaffPasswordRequest
+{
+    [Required, StringLength(128, MinimumLength = 12)]
+    public required string NewPassword { get; init; }
+}
+
 public sealed record LoginResponse(string AccessToken, DateTime ExpiresAtUtc, string Email, IReadOnlyList<string> Roles);
 
 public sealed record StaffResponse(

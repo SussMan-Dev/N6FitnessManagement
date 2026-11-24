@@ -65,9 +65,34 @@ public sealed class ReportsController(IReportService reportService) : Controller
         return Ok(await reportService.GetDashboardAsync(start, end, cancellationToken));
     }
 
+    [HttpGet("expiring-subscriptions")]
+    [ProducesResponseType(typeof(IReadOnlyList<ExpiringSubscriptionItemResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ExpiringSubscriptionItemResponse>>> ExpiringSubscriptions(
+        [FromQuery] int days = 7,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await reportService.GetExpiringSubscriptionsAsync(days, cancellationToken));
+    }
+
+    [HttpGet("analytics")]
+    [ProducesResponseType(typeof(ReportAnalyticsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ReportAnalyticsResponse>> Analytics(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetRange(from, to, out var start, out var end))
+        {
+            return BadRequest(new ProblemDetails { Title = "The date range is invalid." });
+        }
+
+        return Ok(await reportService.GetAnalyticsAsync(start, end, cancellationToken));
+    }
+
     private static bool TryGetRange(DateOnly? from, DateOnly? to, out DateOnly start, out DateOnly end)
     {
-        end = to ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        end = to ?? GymClock.TodayVietnam();
         start = from ?? end.AddDays(-29);
         return start <= end;
     }

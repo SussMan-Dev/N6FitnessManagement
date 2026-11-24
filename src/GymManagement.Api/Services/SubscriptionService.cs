@@ -51,6 +51,7 @@ public sealed class SubscriptionService(GymDbContext dbContext) : ISubscriptionS
 
     public async Task<PagedResponse<SubscriptionResponse>> GetByMemberAsync(
         int memberId,
+        SubscriptionStatus? status,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
@@ -58,6 +59,11 @@ public sealed class SubscriptionService(GymDbContext dbContext) : ISubscriptionS
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
         var query = dbContext.Subscriptions.AsNoTracking().Where(item => item.MemberId == memberId);
+        if (status.HasValue)
+        {
+            query = query.Where(item => item.Status == status.Value);
+        }
+
         var totalCount = await query.CountAsync(cancellationToken);
         var subscriptions = await query
             .OrderByDescending(item => item.CreatedAtUtc)
@@ -130,6 +136,68 @@ public sealed class SubscriptionService(GymDbContext dbContext) : ISubscriptionS
         dbContext.Subscriptions.Add(renewal);
         await dbContext.SaveChangesAsync(cancellationToken);
         return (ToResponse(renewal), null);
+    }
+
+    public async Task<(SubscriptionResponse? Subscription, SubscriptionError? Error)> CancelAsync(
+        int subscriptionId,
+        CancellationToken cancellationToken)
+    {
+        var subscription = await dbContext.Subscriptions.SingleOrDefaultAsync(item => item.Id == subscriptionId, cancellationToken);
+        if (subscription is null)
+        {
+            return (null, SubscriptionError.SubscriptionNotFound);
+        }
+
+        if (subscription.Status != SubscriptionStatus.PendingPayment)
+        {
+            return (null, SubscriptionError.SubscriptionNotCancellable);
+        }
+
+        var linkedInvoices = await dbContext.Invoices
+            .Where(i => i.SubscriptionId == subscriptionId && i.Status == InvoiceStatus.PendingPayment)
+            .ToListAsync(cancellationToken);
+        var linkedInvoiceIds = linkedInvoices.Select(i => i.Id).ToList();
+        if (linkedInvoiceIds.Count > 0)
+        {
+            var hasConfirmedPayments = await dbContext.Payments.AnyAsync(
+                p => linkedInvoiceIds.Contains(p.InvoiceId) && p.Status == PaymentStatus.Confirmed,
+                cancellationToken);
+            if (hasConfirmedPayments)
+            {
+                return (null, SubscriptionError.SubscriptionHasConfirmedPayments);
+            }
+
+            foreach (var inv in linkedInvoices)
+            {
+                inv.Status = InvoiceStatus.Voided;
+                inv.Version++;
+            }
+        }
+
+        subscription.Status = SubscriptionStatus.Cancelled;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return (ToResponse(subscription), null);
+    }
+
+    public async Task<(SubscriptionResponse? Subscription, SubscriptionError? Error)> FreezeAsync(
+        int subscriptionId,
+        int days,
+        CancellationToken cancellationToken)
+    {
+        var subscription = await dbContext.Subscriptions.SingleOrDefaultAsync(item => item.Id == subscriptionId, cancellationToken);
+        if (subscription is null)
+        {
+            return (null, SubscriptionError.SubscriptionNotFound);
+        }
+
+        if (subscription.Status != SubscriptionStatus.Active || !subscription.EndsOn.HasValue)
+        {
+            return (null, SubscriptionError.SubscriptionNotActive);
+        }
+
+        subscription.EndsOn = subscription.EndsOn.Value.AddDays(Math.Clamp(days, 1, 90));
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return (ToResponse(subscription), null);
     }
 
     private static SubscriptionResponse ToResponse(Subscription subscription) => new(

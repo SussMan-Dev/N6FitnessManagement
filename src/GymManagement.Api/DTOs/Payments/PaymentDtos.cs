@@ -18,6 +18,12 @@ public sealed class ConfirmPaymentRequest
 {
     [StringLength(100)]
     public string? Reference { get; init; }
+
+    /// <summary>
+    /// Allows activating the linked PendingPayment subscription immediately on a partial payment
+    /// (deposit / installment) while keeping the invoice in PendingPayment until 100% collected.
+    /// </summary>
+    public bool ActivateSubscriptionNow { get; init; }
 }
 
 public sealed class RejectPaymentRequest
@@ -40,7 +46,11 @@ public sealed record PaymentResponse(
     string? AdjustmentReason,
     int? ReceiptFileId = null,
     IReadOnlyList<int>? ReceiptFileIds = null,
-    string? InvoiceNumber = null);
+    string? InvoiceNumber = null,
+    string? MemberName = null,
+    string? MemberPhone = null,
+    string? CreatedByName = null,
+    string? ReviewedByName = null);
 
 public enum PaymentError
 {

@@ -8,7 +8,15 @@ public sealed class CreateCheckInRequest
     public int MemberId { get; init; }
 }
 
-public sealed record CheckInResponse(int Id, int MemberId, DateTime CheckedInAtUtc, int RecordedByUserId, string Method);
+public sealed record CheckInResponse(
+    int Id,
+    int MemberId,
+    DateTime CheckedInAtUtc,
+    int RecordedByUserId,
+    string Method,
+    string? MemberName = null,
+    string? MemberPhone = null,
+    string? RecordedByName = null);
 
 public enum CheckInError
 {
