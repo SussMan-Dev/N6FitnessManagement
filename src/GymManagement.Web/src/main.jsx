@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Activity,
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { BrowserRouter, Link, NavLink, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { api, clearSession, getSession, saveSession } from './api';
+import { CommandPalette, useCommandPaletteShortcut } from './CommandPalette';
 import {
   CheckInsPage,
   DashboardPage,
@@ -42,15 +43,15 @@ import {
 import './styles.css';
 
 const navigation = [
-  { to: '/', label: 'Tổng quan', icon: LayoutDashboard, end: true },
-  { to: '/members', label: 'Hội viên', icon: Users },
-  { to: '/plans', label: 'Gói tập', icon: BadgeDollarSign },
-  { to: '/subscriptions', label: 'Đăng ký tập', icon: Repeat2 },
-  { to: '/invoices', label: 'Hóa đơn', icon: FileText },
-  { to: '/payments', label: 'Thanh toán', icon: CreditCard },
-  { to: '/checkins', label: 'Check-in', icon: ScanLine },
-  { to: '/trainers', label: 'Huấn luyện viên', icon: Dumbbell },
-  { to: '/reports', label: 'Báo cáo', icon: BarChart3 },
+  { to: '/', label: 'Tổng quan', icon: LayoutDashboard, end: true, keywords: 'dashboard home trang chu' },
+  { to: '/members', label: 'Hội viên', icon: Users, keywords: 'members khach hang' },
+  { to: '/plans', label: 'Gói tập', icon: BadgeDollarSign, keywords: 'plans goi bang gia' },
+  { to: '/subscriptions', label: 'Đăng ký tập', icon: Repeat2, keywords: 'subscriptions gia han' },
+  { to: '/invoices', label: 'Hóa đơn', icon: FileText, keywords: 'invoices bill' },
+  { to: '/payments', label: 'Thanh toán', icon: CreditCard, keywords: 'payments thu tien' },
+  { to: '/checkins', label: 'Check-in', icon: ScanLine, keywords: 'checkin diem danh vao cua' },
+  { to: '/trainers', label: 'Huấn luyện viên', icon: Dumbbell, keywords: 'trainers pt hlv' },
+  { to: '/reports', label: 'Báo cáo', icon: BarChart3, keywords: 'reports doanh thu thong ke' },
 ];
 
 function LoginPage({ onLogin }) {
@@ -126,7 +127,26 @@ function LoginPage({ onLogin }) {
 
 function AppShell({ session, onLogout }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const isAdmin = session.roles?.includes('Admin');
+  const navigate = useNavigate();
+
+  const togglePalette = useCallback(() => setPaletteOpen(open => !open), []);
+  useCommandPaletteShortcut(togglePalette);
+
+  const commands = useMemo(() => {
+    const pages = navigation.map(({ to, label, icon, keywords }) => ({
+      id: `page${to}`, label, icon, keywords, group: 'Trang', hint: to, run: () => navigate(to),
+    }));
+    if (isAdmin) {
+      pages.push({ id: 'page/staff', label: 'Nhân viên', icon: UserRoundCog, keywords: 'staff tai khoan admin', group: 'Trang', hint: '/staff', run: () => navigate('/staff') });
+    }
+    return [
+      ...pages,
+      { id: 'action-portal', label: 'Mở cổng khách hàng', icon: Globe, keywords: 'portal dang ky online', group: 'Tác vụ', run: () => window.open('/portal', '_blank', 'noopener') },
+      { id: 'action-logout', label: 'Đăng xuất', icon: LogOut, keywords: 'logout thoat', group: 'Tác vụ', run: onLogout },
+    ];
+  }, [isAdmin, navigate, onLogout]);
 
   return (
     <div className="app-shell">
@@ -156,11 +176,11 @@ function AppShell({ session, onLogout }) {
             {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <div className="topbar-context"><span className="topbar-kicker">FITNESS MANAGEMENT</span><span>Vận hành câu lạc bộ</span></div>
-          <div className="topbar-search" title="Tìm kiếm nhanh trang hoặc tác vụ (Ctrl + K)">
+          <button type="button" className="topbar-search" title="Tìm kiếm nhanh trang hoặc tác vụ (Ctrl + K)" onClick={() => setPaletteOpen(true)}>
             <Search size={14} />
             <span>Tìm kiếm trang hoặc tác vụ...</span>
             <kbd>CTRL K</kbd>
-          </div>
+          </button>
           <div className="topbar-right-actions">
             <Link to="/portal" target="_blank" rel="noreferrer" className="topbar-portal-btn" title="Mở cổng khách hàng & đăng ký gói tập">
               <Globe size={15} /> <span>Cổng khách hàng</span> <ExternalLink size={12} />
@@ -175,6 +195,7 @@ function AppShell({ session, onLogout }) {
           <span>UI/UX Enhanced by Nguyen Viet Anh · v2.0 Cyber Dark</span>
         </footer>
       </div>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} commands={commands} />
     </div>
   );
 }
