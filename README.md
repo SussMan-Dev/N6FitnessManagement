@@ -198,6 +198,7 @@ Validation dùng DataAnnotations; Identity băm mật khẩu, khóa đăng nhậ
 
 ## Tiến độ và quyết định
 
+- Hướng dẫn cài đặt và chạy local trên Windows: [huysenseiTeachHowToRun.md](huysenseiTeachHowToRun.md)
 - [README_PROGRESS.md](README_PROGRESS.md)
 - [README_ISSUES.md](README_ISSUES.md)
 - [README_DECISIONS.md](README_DECISIONS.md)

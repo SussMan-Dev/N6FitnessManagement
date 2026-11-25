@@ -30,3 +30,9 @@
 - Rà soát license provider `MySql.EntityFrameworkCore` trước phân phối.
 - Chốt và triển khai lịch huấn luyện viên; xác nhận timezone, currency và quy tắc ngày kết thúc inclusive.
 - Kiểm thử HTTPS launch profile; hiện chủ yếu smoke-test HTTP local.
+
+## Quy ước cập nhật tài liệu
+
+- Chỉ đánh dấu build, test hoặc smoke test là PASS khi đã chạy kiểm tra tương ứng; ghi rõ phạm vi và thời điểm xác minh.
+- Khi cập nhật trạng thái hiện tại, phân biệt kết quả đã kiểm chứng với kế hoạch hoặc việc còn thiếu.
+- Ghi quyết định kiến trúc trong `README_DECISIONS.md` và vấn đề/rủi ro chưa xử lý trong `README_ISSUES.md`; không chép secret, thông tin đăng nhập hoặc dữ liệu cá nhân vào tài liệu.
