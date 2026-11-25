@@ -158,6 +158,15 @@ cd d:\N6FitnessManagement
 - `/portal/plans`, `/portal/register`, `/portal/lookup`: cổng công khai để xem gói, đăng ký và tra cứu theo email/số điện thoại.
 
 Phiên nhân viên lưu access token trong `sessionStorage`; token không tự refresh trong MVP. Khi nhận `401`, frontend tự xóa phiên và chuyển về đăng nhập.
+## Luồng sử dụng điển hình
+
+1. Cấu hình MySQL và `appsettings.Development.json`, sau đó khởi động API để áp dụng migrations và tạo tài khoản Admin bootstrap nếu database chưa có tài khoản đầu tiên.
+2. Đăng nhập ở `/login`. Admin có thể tạo tài khoản Staff; Admin và Staff dùng các màn hình nội bộ để quản lý hội viên, gói tập, trainer, hóa đơn và thanh toán.
+3. Tạo hoặc chọn hội viên và gói tập phù hợp, rồi theo dõi subscription và hóa đơn của hội viên trong các màn hình tương ứng. Nhân viên xác nhận hoặc từ chối khoản thanh toán đang chờ; thanh toán chỉ được xác nhận khi số tiền khớp hóa đơn.
+4. Ghi nhận check-in cho hội viên đủ điều kiện. API yêu cầu hội viên đang hoạt động và có subscription còn hiệu lực trong ngày UTC.
+5. Theo dõi tình hình hoạt động qua dashboard và các báo cáo doanh thu, hội viên, check-in; chọn khoảng ngày khi endpoint báo cáo hỗ trợ bộ lọc thời gian.
+
+Khách hàng không cần tài khoản nhân viên để xem gói tập, đăng ký hoặc tra cứu thông tin qua `/portal/plans`, `/portal/register` và `/portal/lookup`. Cổng này không thay thế quy trình vận hành và xác nhận thanh toán nội bộ.
 
 ## Endpoint hiện có trong mã nguồn
 - `POST /api/auth/login` — anonymous.
@@ -188,9 +197,7 @@ Validation dùng DataAnnotations; Identity băm mật khẩu, khóa đăng nhậ
 
 ## Tiến độ và quyết định
 
+- Hướng dẫn cài đặt và chạy local trên Windows: [huysenseiTeachHowToRun.md](huysenseiTeachHowToRun.md)
 - [README_PROGRESS.md](README_PROGRESS.md)
 - [README_ISSUES.md](README_ISSUES.md)
 - [README_DECISIONS.md](README_DECISIONS.md)
-Đã chỉnh sửa cần duyệt
-Tung Tung Tung Sarhua
-Anh Da Den Toi Choi
