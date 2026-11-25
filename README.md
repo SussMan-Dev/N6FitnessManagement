@@ -126,6 +126,7 @@ Validation dùng DataAnnotations; Identity băm mật khẩu, khóa đăng nhậ
 - `src/GymManagement.Api/Data`: `GymDbContext` và mapping.
 - `src/GymManagement.Api/Models`: entity và enum.
 - `src/GymManagement.Api/DTOs`: request/response API.
+- `src/GymManagement.Web`: frontend React/Vite — xem [README frontend](src/GymManagement.Web/README.md).
 
 ## Tiến độ và quyết định
 
