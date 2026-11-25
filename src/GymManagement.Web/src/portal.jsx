@@ -1100,7 +1100,7 @@ export function PortalLookupPage() {
           </div>
           <button type="submit" className="button button-primary lookup-submit-btn" disabled={loading}>
             {loading ? <span className="spinner" /> : <Search size={18} />}
-            <span>{loading ? 'Đang tra cứu thông tin…' : 'Tra cứu thẻ tập ngay'}</span>
+            <span>{loading ? 'Đang tra cứu…' : 'Tra cứu thẻ tập'}</span>
           </button>
         </form>
       </div>
@@ -1271,3 +1271,4 @@ export function PortalLookupPage() {
     </div>
   );
 }
+

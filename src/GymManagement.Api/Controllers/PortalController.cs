@@ -388,3 +388,4 @@ public sealed class PortalController(GymDbContext dbContext) : ControllerBase
         return items;
     }
 }
+

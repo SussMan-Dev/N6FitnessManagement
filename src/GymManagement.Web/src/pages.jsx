@@ -376,7 +376,7 @@ function ResourceDialog({ config, initial, onClose, onSave, saving, error }) {
           </label>
         ))}</div>
         <Notice error={error} />
-        <div className="form-actions"><button className="button button-quiet" type="button" onClick={onClose}>Hủy thao tác</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Đang lưu thông tin…' : (initial ? 'Cập nhật thông tin' : `Thêm ${config.title.toLowerCase()}`)}</button></div>
+        <div className="form-actions"><button className="button button-quiet" type="button" onClick={onClose}>Hủy</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Đang lưu…' : (initial ? 'Lưu thay đổi' : 'Tạo mới')}</button></div>
       </form>
     </Modal>
   );
@@ -543,8 +543,8 @@ export function ResourcePage({ type }) {
           label: 'Thao tác',
           render: item => (
             <div className="table-actions">
-              <button className="button button-small button-quiet" onClick={() => { setError(''); setModal({ item }); }} type="button" title={`Chỉnh sửa ${config.title.toLowerCase()} này`}>Chỉnh sửa</button>
-              <button className="button button-small button-outline" onClick={() => toggleStatus(item)} type="button" title={config.isActive(item) ? `Tạm ngừng ${config.title.toLowerCase()} này` : `Kích hoạt ${config.title.toLowerCase()} này`}>{config.isActive(item) ? 'Tạm ngừng' : 'Kích hoạt lại'}</button>
+              <button className="button button-small button-quiet" onClick={() => { setError(''); setModal({ item }); }} type="button">Sửa</button>
+              <button className="button button-small button-outline" onClick={() => toggleStatus(item)} type="button">{config.isActive(item) ? 'Tạm ngừng' : 'Kích hoạt'}</button>
               {type === 'members' && (item.currentSubscriptionStatus === 'Active' || item.currentSubscriptionStatus === 'PendingPayment') && (
                 <button
                   className="button button-small button-danger-quiet"
@@ -578,7 +578,7 @@ export function ResourcePage({ type }) {
       eyebrow={config.eyebrow}
       title={config.title}
       description={config.description}
-      action={canManage ? <button className="button button-primary" onClick={() => { setError(''); setModal({ item: null }); }}><Plus size={17} />{type === 'members' ? 'Thêm hội viên' : type === 'plans' ? 'Thêm gói tập' : 'Thêm huấn luyện viên'}</button> : null}
+      action={canManage ? <button className="button button-primary" onClick={() => { setError(''); setModal({ item: null }); }}><Plus size={17} />Thêm mới</button> : null}
     />
     <Notice error={error} success={success} />
     <section className="table-panel">
@@ -712,7 +712,7 @@ export function DashboardPage() {
   ] : [];
 
   return <>
-    <PageHeader eyebrow="OVERVIEW · HÔM NAY (UTC+7)" title="Tổng quan vận hành" description="Theo dõi nhanh hội viên, gói tập, doanh thu và lượt check-in." action={<button className="button button-quiet" onClick={() => setVersion(value => value + 1)} title="Tải lại số liệu mới nhất"><RefreshCw size={16} />Cập nhật số liệu</button>} />
+    <PageHeader eyebrow="OVERVIEW · HÔM NAY (UTC+7)" title="Tổng quan vận hành" description="Tình hình hội viên và hoạt động phòng tập theo giờ Việt Nam." action={<button className="button button-quiet" onClick={() => setVersion(value => value + 1)}><RefreshCw size={16} />Làm mới</button>} />
     <Notice error={error} />
     {loading ? <LoadingState /> : report ? <>
       <section className="metric-grid">
