@@ -14,6 +14,7 @@ import {
   Menu,
   Repeat2,
   ScanLine,
+  Search,
   ShieldCheck,
   Sparkles,
   Users,
@@ -155,6 +156,11 @@ function AppShell({ session, onLogout }) {
             {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <div className="topbar-context"><span className="topbar-kicker">FITNESS MANAGEMENT</span><span>Vận hành câu lạc bộ</span></div>
+          <div className="topbar-search" title="Tìm kiếm nhanh trang hoặc tác vụ (Ctrl + K)">
+            <Search size={14} />
+            <span>Tìm kiếm trang hoặc tác vụ...</span>
+            <kbd>CTRL K</kbd>
+          </div>
           <div className="topbar-right-actions">
             <Link to="/portal" target="_blank" rel="noreferrer" className="topbar-portal-btn" title="Mở cổng khách hàng & đăng ký gói tập">
               <Globe size={15} /> <span>Cổng khách hàng</span> <ExternalLink size={12} />
@@ -164,7 +170,10 @@ function AppShell({ session, onLogout }) {
           </div>
         </header>
         <main className="page-content"><Outlet /></main>
-        <footer className="app-footer"><span>GYM MANAGER</span><span>Vận hành nội bộ · v1.0</span></footer>
+        <footer className="app-footer">
+          <span>GYM MANAGER · FITNESS OPERATIONS</span>
+          <span>UI/UX Enhanced by Nguyen Viet Anh · v2.0 Cyber Dark</span>
+        </footer>
       </div>
     </div>
   );
