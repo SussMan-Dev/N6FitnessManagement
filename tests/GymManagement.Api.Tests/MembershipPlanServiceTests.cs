@@ -10,7 +10,7 @@ namespace GymManagement.Api.Tests;
 public sealed class MembershipPlanServiceTests
 {
     [TestMethod]
-    public async Task CreateAsync_PreservesDecimalPriceAndActivatesPlan()
+    public async Task CreateAsync_StoresIntegerPriceAndActivatesPlan()
     {
         using var dbContext = CreateDbContext();
         var service = new MembershipPlanService(dbContext);
@@ -18,11 +18,11 @@ public sealed class MembershipPlanServiceTests
         var plan = await service.CreateAsync(new CreateMembershipPlanRequest
         {
             Name = "Monthly",
-            Price = 125000.50m,
+            Price = 125000m,
             DurationDays = 30
         }, CancellationToken.None);
 
-        Assert.AreEqual(125000.50m, plan.Price);
+        Assert.AreEqual(125000m, plan.Price);
         Assert.IsTrue(plan.IsActive);
     }
 

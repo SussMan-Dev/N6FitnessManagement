@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Gym Management Class Diagram</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    svg {
+      display: block;
+      width: 1860px;
+      height: 1220px;
+    }
+  </style>
+</head>
+<body>
+  <?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1860 1220" width="1860" height="1220">
+  <defs>
+    <!-- Grid Pattern -->
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#f1f5f9" stroke-width="1.2" />
+    </pattern>
+
+    <!-- Markers for arrows -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#0284c7" />
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#f59e0b" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#10b981" />
+    </marker>
+    <marker id="arrow-indigo" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#6366f1" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1860" height="1220" fill="#f8fafc" />
+  <rect width="1860" height="1220" fill="url(#grid)" />
+
+  <!-- Header Banner -->
+  <rect x="0" y="0" width="1860" height="100" fill="#0f172a" />
+  <text x="60" y="45" font-family="Segoe UI, -apple-system, sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="0.5">
+    HỆ THỐNG QUẢN LÝ PHÒNG GYM (FITNESS MANAGEMENT SYSTEM)
+  </text>
+  <text x="60" y="75" font-family="Segoe UI, sans-serif" font-size="14.5" font-weight="400" fill="#94a3b8">
+    SƠ ĐỒ LỚP THỰC THỂ &amp; MIỀN DỮ LIỆU (DOMAIN MODEL &amp; UML CLASS DIAGRAM) • ASP.NET CORE API &amp; EF CORE
+  </text>
+
+  <!-- Legend (Ghi chú màu sắc) -->
+  <g transform="translate(1200, 30)">
+    <rect x="0" y="0" width="600" height="50" rx="8" fill="#1e293b" />
+    <circle cx="25" cy="25" r="7" fill="#0284c7" />
+    <text x="38" y="29" font-family="Segoe UI" font-size="12" fill="#cbd5e1" font-weight="600">Hội viên / Điểm danh</text>
+
+    <circle cx="185" cy="25" r="7" fill="#f59e0b" />
+    <text x="198" y="29" font-family="Segoe UI" font-size="12" fill="#cbd5e1" font-weight="600">Gói tập / Đăng ký</text>
+
+    <circle cx="330" cy="25" r="7" fill="#10b981" />
+    <text x="343" y="29" font-family="Segoe UI" font-size="12" fill="#cbd5e1" font-weight="600">Hóa đơn / Thanh toán</text>
+
+    <circle cx="480" cy="25" r="7" fill="#6366f1" />
+    <text x="493" y="29" font-family="Segoe UI" font-size="12" fill="#cbd5e1" font-weight="600">Tài khoản &amp; PT</text>
+  </g>
+
+  <!-- Connectors -->
+  
+  <!-- Member -> Subscription (1..*) -->
+  <path d="M 390 270 L 435 270 L 435 520 L 480 520" fill="none" stroke="#0284c7" stroke-width="2.5" marker-end="url(#arrow)" />
+  <text x="396" y="260" font-family="Segoe UI" font-size="13" font-weight="700" fill="#0369a1">1</text>
+  <text x="445" y="512" font-family="Segoe UI" font-size="13" font-weight="700" fill="#0369a1">0..*</text>
+  <rect x="390" y="380" width="70" height="22" rx="4" fill="#f0f9ff" stroke="#bae6fd"/>
+  <text x="425" y="395" text-anchor="middle" font-family="Segoe UI" font-size="11" font-weight="600" fill="#0284c7">đăng ký</text>
+
+  <!-- Member -> CheckIn (1..*) -->
+  <path d="M 225 400 L 225 460" fill="none" stroke="#0284c7" stroke-width="2.5" marker-end="url(#arrow)" />
+  <text x="233" y="420" font-family="Segoe UI" font-size="13" font-weight="700" fill="#0369a1">1</text>
+  <text x="233" y="450" font-family="Segoe UI" font-size="13" font-weight="700" fill="#0369a1">0..*</text>
+
+  <!-- Member -> Invoice (1..*) -->
+  <path d="M 390 210 L 900 210 L 900 450 L 920 450" fill="none" stroke="#0284c7" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)" />
+  <text x="400" y="202" font-family="Segoe UI" font-size="12" font-weight="600" fill="#0284c7">1</text>
+  <text x="880" y="442" font-family="Segoe UI" font-size="12" font-weight="600" fill="#0284c7">0..*</text>
+
+  <!-- MembershipPlan -> Subscription (1..*) -->
+  <path d="M 650 355 L 650 430" fill="none" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrow-amber)" />
+  <text x="658" y="380" font-family="Segoe UI" font-size="13" font-weight="700" fill="#b45309">1</text>
+  <text x="658" y="420" font-family="Segoe UI" font-size="13" font-weight="700" fill="#b45309">0..*</text>
+
+  <!-- Subscription -> Invoice (1..*) -->
+  <path d="M 820 540 L 920 540" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrow-green)" />
+  <text x="830" y="530" font-family="Segoe UI" font-size="13" font-weight="700" fill="#047857">1</text>
+  <text x="895" y="530" font-family="Segoe UI" font-size="13" font-weight="700" fill="#047857">1</text>
+  <text x="870" y="560" text-anchor="middle" font-family="Segoe UI" font-size="11" font-weight="600" fill="#10b981">phát sinh</text>
+
+  <!-- Invoice -> Payment (1..*) -->
+  <path d="M 1280 540 L 1380 540" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrow-green)" />
+  <text x="1290" y="530" font-family="Segoe UI" font-size="13" font-weight="700" fill="#047857">1</text>
+  <text x="1355" y="530" font-family="Segoe UI" font-size="13" font-weight="700" fill="#047857">0..*</text>
+  <text x="1330" y="560" text-anchor="middle" font-family="Segoe UI" font-size="11" font-weight="600" fill="#10b981">thu tiền</text>
+
+  <!-- Payment -> StoredFile (0..1 -> 0..1) -->
+  <path d="M 1555 720 L 1555 770" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrow-green)" />
+  <text x="1563" y="740" font-family="Segoe UI" font-size="13" font-weight="700" fill="#047857">1</text>
+  <text x="1563" y="760" font-family="Segoe UI" font-size="13" font-weight="700" fill="#047857">0..1 (Receipt)</text>
+
+  <!-- Subscription self-reference (RenewedFrom) -->
+  <path d="M 820 460 C 870 430, 870 500, 820 490" fill="none" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-amber)" />
+  <text x="875" y="470" font-family="Segoe UI" font-size="11" font-weight="600" fill="#b45309">gia hạn từ</text>
+
+  <!-- GymUser -> Invoice & Payment & CheckIn -->
+  <path d="M 1140 230 L 1090 230 L 1090 390" fill="none" stroke="#6366f1" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-indigo)" />
+  <text x="1098" y="360" font-family="Segoe UI" font-size="11" font-weight="600" fill="#6366f1">CreatedBy</text>
+
+  <path d="M 1360 315 L 1440 370" fill="none" stroke="#6366f1" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-indigo)" />
+  <text x="1425" y="340" font-family="Segoe UI" font-size="11" font-weight="600" fill="#6366f1">ReviewedBy</text>
+
+
+  <!-- Classes -->
+  
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="60" y="150" width="330" height="250" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="60" y="150" width="330" height="250" rx="10" ry="10" fill="#ffffff" stroke="#0284c7" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 60 160 Q 60 150 70 150 L 380 150 Q 390 150 390 160 L 390 202 L 60 202 Z" fill="#e0f2fe" />
+      <line x1="60" y1="202" x2="390" y2="202" stroke="#0284c7" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="225" y="168" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#0369a1" letter-spacing="0.5">&lt;&lt;entity&gt;&gt; Hội viên</text>
+      
+      <!-- Title -->
+      <text x="225" y="187" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#0369a1">
+        Member
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="74" y="220" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Id</tspan>: <tspan fill="#64748b">int (PK)</tspan>
+      </text>
+      <text x="74" y="241" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ FirstName</tspan>: <tspan fill="#64748b">string [100]</tspan>
+      </text>
+      <text x="74" y="262" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ LastName</tspan>: <tspan fill="#64748b">string [100]</tspan>
+      </text>
+      <text x="74" y="283" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Email</tspan>: <tspan fill="#64748b">string? [254] (Unique)</tspan>
+      </text>
+      <text x="74" y="304" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Phone</tspan>: <tspan fill="#64748b">string? [30]</tspan>
+      </text>
+      <text x="74" y="325" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ BirthDate</tspan>: <tspan fill="#64748b">DateOnly?</tspan>
+      </text>
+      <text x="74" y="346" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ JoinedAtUtc</tspan>: <tspan fill="#64748b">DateTime</tspan>
+      </text>
+      <text x="74" y="367" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Status</tspan>: <tspan fill="#64748b">MemberStatus</tspan>
+      </text>
+    </g>
+  
+
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="60" y="460" width="330" height="180" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="60" y="460" width="330" height="180" rx="10" ry="10" fill="#ffffff" stroke="#0284c7" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 60 470 Q 60 460 70 460 L 380 460 Q 390 460 390 470 L 390 512 L 60 512 Z" fill="#e0f2fe" />
+      <line x1="60" y1="512" x2="390" y2="512" stroke="#0284c7" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="225" y="478" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#0369a1" letter-spacing="0.5">&lt;&lt;entity&gt;&gt; Lịch sử điểm danh</text>
+      
+      <!-- Title -->
+      <text x="225" y="497" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#0369a1">
+        CheckIn
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="74" y="530" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Id</tspan>: <tspan fill="#64748b">int (PK)</tspan>
+      </text>
+      <text x="74" y="551" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ MemberId</tspan>: <tspan fill="#64748b">int (FK -&gt; Member)</tspan>
+      </text>
+      <text x="74" y="572" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ CheckedInAtUtc</tspan>: <tspan fill="#64748b">DateTime</tspan>
+      </text>
+      <text x="74" y="593" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ RecordedByUserId</tspan>: <tspan fill="#64748b">int (FK -&gt; User)</tspan>
+      </text>
+      <text x="74" y="614" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Method</tspan>: <tspan fill="#64748b">string [30]</tspan>
+      </text>
+    </g>
+  
+
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="60" y="700" width="330" height="215" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="60" y="700" width="330" height="215" rx="10" ry="10" fill="#ffffff" stroke="#a855f7" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 60 710 Q 60 700 70 700 L 380 700 Q 390 700 390 710 L 390 752 L 60 752 Z" fill="#f3e8ff" />
+      <line x1="60" y1="752" x2="390" y2="752" stroke="#a855f7" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="225" y="718" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#7e22ce" letter-spacing="0.5">&lt;&lt;entity&gt;&gt; Huấn luyện viên (PT)</text>
+      
+      <!-- Title -->
+      <text x="225" y="737" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#7e22ce">
+        Trainer
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="74" y="770" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Id</tspan>: <tspan fill="#64748b">int (PK)</tspan>
+      </text>
+      <text x="74" y="791" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ FirstName</tspan>: <tspan fill="#64748b">string [100]</tspan>
+      </text>
+      <text x="74" y="812" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ LastName</tspan>: <tspan fill="#64748b">string [100]</tspan>
+      </text>
+      <text x="74" y="833" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Email</tspan>: <tspan fill="#64748b">string? [254] (Unique)</tspan>
+      </text>
+      <text x="74" y="854" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Phone</tspan>: <tspan fill="#64748b">string? [30]</tspan>
+      </text>
+      <text x="74" y="875" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Specialty</tspan>: <tspan fill="#64748b">string? [120]</tspan>
+      </text>
+      <text x="74" y="896" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ IsActive</tspan>: <tspan fill="#64748b">bool</tspan>
+      </text>
+    </g>
+  
+
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="480" y="150" width="340" height="205" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="480" y="150" width="340" height="205" rx="10" ry="10" fill="#ffffff" stroke="#f59e0b" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 480 160 Q 480 150 490 150 L 810 150 Q 820 150 820 160 L 820 202 L 480 202 Z" fill="#fef3c7" />
+      <line x1="480" y1="202" x2="820" y2="202" stroke="#f59e0b" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="650" y="168" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#b45309" letter-spacing="0.5">&lt;&lt;entity&gt;&gt; Danh mục gói tập</text>
+      
+      <!-- Title -->
+      <text x="650" y="187" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#b45309">
+        MembershipPlan
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="494" y="220" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Id</tspan>: <tspan fill="#64748b">int (PK)</tspan>
+      </text>
+      <text x="494" y="241" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Name</tspan>: <tspan fill="#64748b">string [120]</tspan>
+      </text>
+      <text x="494" y="262" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Description</tspan>: <tspan fill="#64748b">string? [500]</tspan>
+      </text>
+      <text x="494" y="283" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Price</tspan>: <tspan fill="#64748b">decimal(10,2)</tspan>
+      </text>
+      <text x="494" y="304" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ DurationDays</tspan>: <tspan fill="#64748b">int</tspan>
+      </text>
+      <text x="494" y="325" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ IsActive</tspan>: <tspan fill="#64748b">bool</tspan>
+      </text>
+    </g>
+  
+
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="480" y="430" width="340" height="245" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="480" y="430" width="340" height="245" rx="10" ry="10" fill="#ffffff" stroke="#f59e0b" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 480 440 Q 480 430 490 430 L 810 430 Q 820 430 820 440 L 820 482 L 480 482 Z" fill="#fef3c7" />
+      <line x1="480" y1="482" x2="820" y2="482" stroke="#f59e0b" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="650" y="448" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#b45309" letter-spacing="0.5">&lt;&lt;entity&gt;&gt; Gói đăng ký hội viên</text>
+      
+      <!-- Title -->
+      <text x="650" y="467" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#b45309">
+        Subscription
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="494" y="500" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Id</tspan>: <tspan fill="#64748b">int (PK)</tspan>
+      </text>
+      <text x="494" y="521" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ MemberId</tspan>: <tspan fill="#64748b">int (FK -&gt; Member)</tspan>
+      </text>
+      <text x="494" y="542" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ MembershipPlanId</tspan>: <tspan fill="#64748b">int (FK -&gt; Plan)</tspan>
+      </text>
+      <text x="494" y="563" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ RenewedFromSubscriptionId</tspan>: <tspan fill="#64748b">int? (FK)</tspan>
+      </text>
+      <text x="494" y="584" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ StartsOn</tspan>: <tspan fill="#64748b">DateOnly?</tspan>
+      </text>
+      <text x="494" y="605" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ EndsOn</tspan>: <tspan fill="#64748b">DateOnly?</tspan>
+      </text>
+      <text x="494" y="626" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ CreatedAtUtc</tspan>: <tspan fill="#64748b">DateTime</tspan>
+      </text>
+      <text x="494" y="647" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Status</tspan>: <tspan fill="#64748b">SubscriptionStatus</tspan>
+      </text>
+    </g>
+  
+
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="920" y="390" width="360" height="310" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="920" y="390" width="360" height="310" rx="10" ry="10" fill="#ffffff" stroke="#10b981" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 920 400 Q 920 390 930 390 L 1270 390 Q 1280 390 1280 400 L 1280 442 L 920 442 Z" fill="#d1fae5" />
+      <line x1="920" y1="442" x2="1280" y2="442" stroke="#10b981" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="1100" y="408" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#047857" letter-spacing="0.5">&lt;&lt;entity&gt;&gt; Hóa đơn thanh toán</text>
+      
+      <!-- Title -->
+      <text x="1100" y="427" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#047857">
+        Invoice
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="934" y="460" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Id</tspan>: <tspan fill="#64748b">int (PK)</tspan>
+      </text>
+      <text x="934" y="481" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Number</tspan>: <tspan fill="#64748b">string [40] (Unique)</tspan>
+      </text>
+      <text x="934" y="502" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ MemberId</tspan>: <tspan fill="#64748b">int (FK -&gt; Member)</tspan>
+      </text>
+      <text x="934" y="523" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ SubscriptionId</tspan>: <tspan fill="#64748b">int (FK -&gt; Sub)</tspan>
+      </text>
+      <text x="934" y="544" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ PlanNameSnapshot</tspan>: <tspan fill="#64748b">string [120]</tspan>
+      </text>
+      <text x="934" y="565" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ PlanDurationDaysSnapshot</tspan>: <tspan fill="#64748b">int</tspan>
+      </text>
+      <text x="934" y="586" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ TotalAmount</tspan>: <tspan fill="#64748b">decimal(10,2)</tspan>
+      </text>
+      <text x="934" y="607" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Status</tspan>: <tspan fill="#64748b">InvoiceStatus</tspan>
+      </text>
+      <text x="934" y="628" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ CreatedAtUtc</tspan>: <tspan fill="#64748b">DateTime</tspan>
+      </text>
+      <text x="934" y="649" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ CreatedByUserId</tspan>: <tspan fill="#64748b">int</tspan>
+      </text>
+      <text x="934" y="670" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ PaidAtUtc</tspan>: <tspan fill="#64748b">DateTime?</tspan>
+      </text>
+      <text x="934" y="691" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Version</tspan>: <tspan fill="#64748b">int [Concurrency]</tspan>
+      </text>
+    </g>
+  
+
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="1380" y="370" width="350" height="350" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="1380" y="370" width="350" height="350" rx="10" ry="10" fill="#ffffff" stroke="#10b981" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 1380 380 Q 1380 370 1390 370 L 1720 370 Q 1730 370 1730 380 L 1730 422 L 1380 422 Z" fill="#d1fae5" />
+      <line x1="1380" y1="422" x2="1730" y2="422" stroke="#10b981" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="1555" y="388" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#047857" letter-spacing="0.5">&lt;&lt;entity&gt;&gt; Giao dịch thu tiền</text>
+      
+      <!-- Title -->
+      <text x="1555" y="407" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#047857">
+        Payment
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="1394" y="440" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Id</tspan>: <tspan fill="#64748b">int (PK)</tspan>
+      </text>
+      <text x="1394" y="461" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ InvoiceId</tspan>: <tspan fill="#64748b">int (FK -&gt; Invoice)</tspan>
+      </text>
+      <text x="1394" y="482" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Amount</tspan>: <tspan fill="#64748b">decimal(10,2)</tspan>
+      </text>
+      <text x="1394" y="503" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Method</tspan>: <tspan fill="#64748b">PaymentMethod</tspan>
+      </text>
+      <text x="1394" y="524" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Status</tspan>: <tspan fill="#64748b">PaymentStatus</tspan>
+      </text>
+      <text x="1394" y="545" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Reference</tspan>: <tspan fill="#64748b">string? [100]</tspan>
+      </text>
+      <text x="1394" y="566" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ CreatedAtUtc</tspan>: <tspan fill="#64748b">DateTime</tspan>
+      </text>
+      <text x="1394" y="587" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ CreatedByUserId</tspan>: <tspan fill="#64748b">int</tspan>
+      </text>
+      <text x="1394" y="608" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ ReviewedByUserId</tspan>: <tspan fill="#64748b">int?</tspan>
+      </text>
+      <text x="1394" y="629" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ ReviewedAtUtc</tspan>: <tspan fill="#64748b">DateTime?</tspan>
+      </text>
+      <text x="1394" y="650" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ AdjustmentReason</tspan>: <tspan fill="#64748b">string? [500]</tspan>
+      </text>
+      <text x="1394" y="671" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ ReceiptFileId</tspan>: <tspan fill="#64748b">int? (FK -&gt; StoredFile)</tspan>
+      </text>
+      <text x="1394" y="692" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Version</tspan>: <tspan fill="#64748b">int [Concurrency]</tspan>
+      </text>
+    </g>
+  
+
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="1380" y="770" width="350" height="185" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="1380" y="770" width="350" height="185" rx="10" ry="10" fill="#ffffff" stroke="#10b981" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 1380 780 Q 1380 770 1390 770 L 1720 770 Q 1730 770 1730 780 L 1730 822 L 1380 822 Z" fill="#d1fae5" />
+      <line x1="1380" y1="822" x2="1730" y2="822" stroke="#10b981" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="1555" y="788" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#047857" letter-spacing="0.5">&lt;&lt;entity&gt;&gt; Tệp lưu trữ / Biên lai</text>
+      
+      <!-- Title -->
+      <text x="1555" y="807" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#047857">
+        StoredFile
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="1394" y="840" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Id</tspan>: <tspan fill="#64748b">int (PK)</tspan>
+      </text>
+      <text x="1394" y="861" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ FileName</tspan>: <tspan fill="#64748b">string [255]</tspan>
+      </text>
+      <text x="1394" y="882" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ ContentType</tspan>: <tspan fill="#64748b">string [100]</tspan>
+      </text>
+      <text x="1394" y="903" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Content</tspan>: <tspan fill="#64748b">byte[] [LONGBLOB]</tspan>
+      </text>
+      <text x="1394" y="924" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Length</tspan>: <tspan fill="#64748b">long</tspan>
+      </text>
+      <text x="1394" y="945" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ UploadedAt</tspan>: <tspan fill="#64748b">DateTime</tspan>
+      </text>
+    </g>
+  
+
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="1140" y="150" width="340" height="165" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="1140" y="150" width="340" height="165" rx="10" ry="10" fill="#ffffff" stroke="#6366f1" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 1140 160 Q 1140 150 1150 150 L 1470 150 Q 1480 150 1480 160 L 1480 202 L 1140 202 Z" fill="#e0e7ff" />
+      <line x1="1140" y1="202" x2="1480" y2="202" stroke="#6366f1" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="1310" y="168" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#4338ca" letter-spacing="0.5">&lt;&lt;IdentityUser&lt;int&gt;&gt;&gt; Nhân viên &amp; Quản trị</text>
+      
+      <!-- Title -->
+      <text x="1310" y="187" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#4338ca">
+        GymUser
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="1154" y="220" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Id</tspan>: <tspan fill="#64748b">int (PK)</tspan>
+      </text>
+      <text x="1154" y="241" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ UserName</tspan>: <tspan fill="#64748b">string</tspan>
+      </text>
+      <text x="1154" y="262" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Email</tspan>: <tspan fill="#64748b">string</tspan>
+      </text>
+      <text x="1154" y="283" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ DisplayName</tspan>: <tspan fill="#64748b">string [120]</tspan>
+      </text>
+      <text x="1154" y="304" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ IsActive</tspan>: <tspan fill="#64748b">bool</tspan>
+      </text>
+      <text x="1154" y="325" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">+ Roles</tspan>: <tspan fill="#64748b">&quot;Admin&quot; | &quot;Staff&quot;</tspan>
+      </text>
+    </g>
+  
+
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="480" y="730" width="340" height="170" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="480" y="730" width="340" height="170" rx="10" ry="10" fill="#ffffff" stroke="#64748b" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 480 740 Q 480 730 490 730 L 810 730 Q 820 730 820 740 L 820 782 L 480 782 Z" fill="#f1f5f9" />
+      <line x1="480" y1="782" x2="820" y2="782" stroke="#64748b" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="650" y="748" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#334155" letter-spacing="0.5">&lt;&lt;enumeration&gt;&gt;</text>
+      
+      <!-- Title -->
+      <text x="650" y="767" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#334155">
+        MemberStatus &amp; SubStatus
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="494" y="800" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">MemberStatus</tspan>: <tspan fill="#64748b">Active | Inactive | Suspended</tspan>
+      </text>
+      <text x="494" y="821" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">---</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+      <text x="494" y="842" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">SubscriptionStatus</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+      <text x="494" y="863" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">• PendingPayment (Chờ thanh toán)</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+      <text x="494" y="884" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">• Active (Đang hiệu lực)</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+      <text x="494" y="905" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">• Expired (Hết hạn)</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+      <text x="494" y="926" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">• Cancelled (Đã hủy)</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+    </g>
+  
+
+    <g class="uml-class">
+      <!-- Shadow -->
+      <rect x="920" y="750" width="360" height="165" rx="10" ry="10" fill="#000" opacity="0.04" transform="translate(0, 4)" />
+      <!-- Card Body -->
+      <rect x="920" y="750" width="360" height="165" rx="10" ry="10" fill="#ffffff" stroke="#64748b" stroke-width="2" />
+      <!-- Header Background -->
+      <path d="M 920 760 Q 920 750 930 750 L 1270 750 Q 1280 750 1280 760 L 1280 802 L 920 802 Z" fill="#f1f5f9" />
+      <line x1="920" y1="802" x2="1280" y2="802" stroke="#64748b" stroke-width="1.5" />
+      
+      <!-- Subtitle/Stereotype -->
+      <text x="1100" y="768" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10.5" font-weight="600" fill="#334155" letter-spacing="0.5">&lt;&lt;enumeration&gt;&gt;</text>
+      
+      <!-- Title -->
+      <text x="1100" y="787" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#334155">
+        Invoice &amp; Payment Enums
+      </text>
+
+      <!-- Fields Compartment -->
+      
+      <text x="934" y="820" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">InvoiceStatus</tspan>: <tspan fill="#64748b">PendingPayment | Paid | Voided</tspan>
+      </text>
+      <text x="934" y="841" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">---</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+      <text x="934" y="862" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">PaymentMethod</tspan>: <tspan fill="#64748b">Cash | BankTransfer</tspan>
+      </text>
+      <text x="934" y="883" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">---</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+      <text x="934" y="904" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">PaymentStatus</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+      <text x="934" y="925" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">• PendingConfirmation (Chờ xác nhận)</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+      <text x="934" y="946" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">• Confirmed (Đã xác nhận thu)</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+      <text x="934" y="967" font-family="Segoe UI, -apple-system, sans-serif" font-size="12.5" fill="#334155">
+        <tspan font-weight="600" fill="#0f172a">• Rejected (Từ chối)</tspan>: <tspan fill="#64748b"></tspan>
+      </text>
+    </g>
+  
+
+  <!-- Footer / Metadata -->
+  <line x1="60" y1="1170" x2="1800" y2="1170" stroke="#cbd5e1" stroke-width="1" />
+  <text x="60" y="1195" font-family="Segoe UI" font-size="12.5" font-weight="500" fill="#64748b">
+    Dự án: GymManagement API • Kiến trúc Modular Monolith • CSDL: MySQL 8.0 • ORM: Entity Framework Core
+  </text>
+  <text x="1800" y="1195" text-anchor="end" font-family="Segoe UI" font-size="12.5" font-weight="600" fill="#0284c7">
+    Đã đồng bộ thực thể StoredFiles &amp; Biên lai chuyển khoản
+  </text>
+</svg>
+
+</body>
+</html>

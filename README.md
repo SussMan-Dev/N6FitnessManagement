@@ -158,7 +158,6 @@ cd d:\N6FitnessManagement
 - `/portal/plans`, `/portal/register`, `/portal/lookup`: cổng công khai để xem gói, đăng ký và tra cứu theo email/số điện thoại.
 
 Phiên nhân viên lưu access token trong `sessionStorage`; token không tự refresh trong MVP. Khi nhận `401`, frontend tự xóa phiên và chuyển về đăng nhập.
-
 ## Luồng sử dụng điển hình
 
 1. Cấu hình MySQL và `appsettings.Development.json`, sau đó khởi động API để áp dụng migrations và tạo tài khoản Admin bootstrap nếu database chưa có tài khoản đầu tiên.

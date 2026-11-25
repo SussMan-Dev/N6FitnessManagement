@@ -39,6 +39,18 @@ public sealed class CheckInsController(ICheckInService checkInService, IMemberSe
             result.CheckIn);
     }
 
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResponse<CheckInResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponse<CheckInResponse>>> GetByDate(
+        [FromQuery] DateOnly? date,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var targetDate = date ?? GymClock.TodayVietnam();
+        return Ok(await checkInService.GetByDateAsync(targetDate, page, pageSize, cancellationToken));
+    }
+
     [HttpGet("~/api/members/{memberId:int}/check-ins")]
     [ProducesResponseType(typeof(PagedResponse<CheckInResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

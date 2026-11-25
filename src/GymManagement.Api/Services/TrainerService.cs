@@ -112,6 +112,19 @@ public sealed class TrainerService(GymDbContext dbContext) : ITrainerService
         return true;
     }
 
+    public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken)
+    {
+        var trainer = await dbContext.Trainers.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (trainer is null)
+        {
+            return false;
+        }
+
+        dbContext.Trainers.Remove(trainer);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     private Task<bool> EmailExistsAsync(string? email, int? excludedId, CancellationToken cancellationToken)
     {
         if (email is null)

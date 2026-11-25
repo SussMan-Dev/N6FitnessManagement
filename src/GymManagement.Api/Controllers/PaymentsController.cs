@@ -16,11 +16,15 @@ public sealed class PaymentsController(IPaymentService paymentService, IFileServ
     [ProducesResponseType(typeof(PagedResponse<PaymentResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<PaymentResponse>>> Search(
         [FromQuery] int? invoiceId,
+        [FromQuery] GymManagement.Api.Models.PaymentStatus? status,
+        [FromQuery] string? search,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await paymentService.SearchAsync(invoiceId, page, pageSize, cancellationToken));
+        return Ok(await paymentService.SearchAsync(invoiceId, status, search, from, to, page, pageSize, cancellationToken));
     }
 
     [HttpGet("api/payments/{id:int}")]
@@ -103,6 +107,41 @@ public sealed class PaymentsController(IPaymentService paymentService, IFileServ
         return File(file.Content, file.ContentType);
     }
 
+    [HttpGet("api/payments/{id:int}/receipts")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetReceipts(int id, CancellationToken cancellationToken)
+    {
+        var payment = await paymentService.GetByIdAsync(id, cancellationToken);
+        if (payment is null)
+        {
+            return NotFound();
+        }
+
+        var fileIds = payment.ReceiptFileIds ?? (payment.ReceiptFileId.HasValue ? new[] { payment.ReceiptFileId.Value } : Array.Empty<int>());
+        var list = new List<object>();
+        foreach (var fileId in fileIds)
+        {
+            var file = await fileService.GetByIdAsync(fileId, cancellationToken);
+            if (file is not null)
+            {
+                list.Add(new
+                {
+                    id = file.Id,
+                    fileName = file.FileName,
+                    contentType = file.ContentType,
+                    length = file.Length,
+                    uploadedAt = file.UploadedAt,
+                    url = $"/api/files/{file.Id}",
+                    downloadUrl = $"/api/files/{file.Id}/download"
+                });
+            }
+        }
+
+        return Ok(list);
+    }
+
     [HttpPost("api/payments/{id:int}/confirm")]
     [ProducesResponseType(typeof(PaymentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -146,6 +185,10 @@ public sealed class PaymentsController(IPaymentService paymentService, IFileServ
     {
         PaymentError.InvoiceNotFound or PaymentError.PaymentNotFound or PaymentError.FileNotFound =>
             NotFound(new ProblemDetails { Title = error.ToString() }),
+        PaymentError.AmountMismatch =>
+            Conflict(new ProblemDetails { Title = "Số tiền thanh toán vượt quá số tiền còn phải thu của hóa đơn." }),
+        PaymentError.TransferReferenceRequired =>
+            Conflict(new ProblemDetails { Title = "Vui lòng nhập mã giao dịch ngân hàng cho hình thức chuyển khoản." }),
         _ => Conflict(new ProblemDetails { Title = error.ToString() })
     };
 }

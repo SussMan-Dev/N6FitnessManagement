@@ -39,6 +39,7 @@ public sealed class SubscriptionsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PagedResponse<SubscriptionResponse>>> GetByMember(
         int memberId,
+        [FromQuery] GymManagement.Api.Models.SubscriptionStatus? status = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -49,7 +50,7 @@ public sealed class SubscriptionsController(
             return NotFound();
         }
 
-        return Ok(await subscriptionService.GetByMemberAsync(memberId, page, pageSize, cancellationToken));
+        return Ok(await subscriptionService.GetByMemberAsync(memberId, status, page, pageSize, cancellationToken));
     }
 
     [HttpPost("{id:int}/renew")]
@@ -70,11 +71,37 @@ public sealed class SubscriptionsController(
             result.Subscription);
     }
 
+    [HttpPost("{id:int}/cancel")]
+    [ProducesResponseType(typeof(SubscriptionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<SubscriptionResponse>> Cancel(int id, CancellationToken cancellationToken)
+    {
+        var result = await subscriptionService.CancelAsync(id, cancellationToken);
+        return result.Error is not null ? ToErrorResult(result.Error.Value) : Ok(result.Subscription);
+    }
+
+    [HttpPost("{id:int}/freeze")]
+    [ProducesResponseType(typeof(SubscriptionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<SubscriptionResponse>> Freeze(
+        int id,
+        FreezeSubscriptionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await subscriptionService.FreezeAsync(id, request.Days, cancellationToken);
+        return result.Error is not null ? ToErrorResult(result.Error.Value) : Ok(result.Subscription);
+    }
+
     private ActionResult ToErrorResult(SubscriptionError error) => error switch
     {
         SubscriptionError.MemberNotFound or
         SubscriptionError.PlanNotFound or
         SubscriptionError.SubscriptionNotFound => NotFound(new ProblemDetails { Title = error.ToString() }),
+        SubscriptionError.SubscriptionNotCancellable => Conflict(new ProblemDetails { Title = "Chỉ có thể hủy đăng ký đang ở trạng thái Chờ thanh toán." }),
+        SubscriptionError.SubscriptionHasConfirmedPayments => Conflict(new ProblemDetails { Title = "Không thể hủy đăng ký vì hóa đơn đã có khoản thanh toán được xác nhận." }),
+        SubscriptionError.SubscriptionNotActive => Conflict(new ProblemDetails { Title = "Chỉ có thể bảo lưu / cộng ngày cho gói tập đang hoạt động." }),
         _ => Conflict(new ProblemDetails { Title = error.ToString() })
     };
 }

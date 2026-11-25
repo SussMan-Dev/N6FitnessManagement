@@ -24,4 +24,6 @@ public interface ITrainerService
         CancellationToken cancellationToken);
 
     Task<bool> UpdateStatusAsync(int id, bool isActive, CancellationToken cancellationToken);
+
+    Task<bool> DeleteAsync(int id, CancellationToken cancellationToken);
 }

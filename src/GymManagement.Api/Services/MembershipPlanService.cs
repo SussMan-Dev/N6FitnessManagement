@@ -104,6 +104,26 @@ public sealed class MembershipPlanService(GymDbContext dbContext) : IMembershipP
         return true;
     }
 
+    public async Task<(bool Deleted, bool HasRelatedRecords)> DeleteAsync(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var plan = await dbContext.MembershipPlans.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (plan is null)
+        {
+            return (false, false);
+        }
+
+        if (await dbContext.Subscriptions.AnyAsync(item => item.MembershipPlanId == id, cancellationToken))
+        {
+            return (false, true);
+        }
+
+        dbContext.MembershipPlans.Remove(plan);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return (true, false);
+    }
+
     private static string? NormalizeOptional(string? value)
     {
         var normalized = value?.Trim();
@@ -114,7 +134,7 @@ public sealed class MembershipPlanService(GymDbContext dbContext) : IMembershipP
         plan.Id,
         plan.Name,
         plan.Description,
-        plan.Price,
+        decimal.Truncate(plan.Price),
         plan.DurationDays,
         plan.IsActive);
 }

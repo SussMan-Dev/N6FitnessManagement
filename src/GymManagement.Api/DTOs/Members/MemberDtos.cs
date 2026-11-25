@@ -51,4 +51,8 @@ public sealed record MemberResponse(
     string? Phone,
     DateOnly? BirthDate,
     DateTime JoinedAtUtc,
-    MemberStatus Status);
+    MemberStatus Status,
+    string? CurrentPlanName = null,
+    DateOnly? CurrentSubscriptionEnd = null,
+    int? DaysRemaining = null,
+    SubscriptionStatus? CurrentSubscriptionStatus = null);

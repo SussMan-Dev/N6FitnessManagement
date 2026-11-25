@@ -132,6 +132,16 @@ export async function uploadPaymentReceipt(paymentId, file) {
   });
 }
 
+export async function uploadPortalReceipt(invoiceId, query, file) {
+  const formData = new FormData();
+  formData.append('query', query);
+  formData.append('file', file);
+  return api(`/portal/invoices/${invoiceId}/receipt`, {
+    method: 'POST',
+    body: formData,
+  });
+}
+
 export function getFileUrl(fileId) {
   if (!fileId) return null;
   return `${API_ROOT}/files/${fileId}`;

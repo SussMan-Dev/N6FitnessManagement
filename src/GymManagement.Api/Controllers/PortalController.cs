@@ -2,6 +2,7 @@ using System.Data;
 using GymManagement.Api.Data;
 using GymManagement.Api.DTOs.Portal;
 using GymManagement.Api.Models;
+using GymManagement.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -65,15 +66,18 @@ public sealed class PortalController(GymDbContext dbContext) : ControllerBase
         }
 
         var email = request.Email.Trim().ToLowerInvariant();
-        var phone = request.Phone.Trim();
+        var phone = new string(request.Phone.Trim().Where(c => !char.IsWhiteSpace(c) && c != '-' && c != '.').ToArray());
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
-        // 1. Locate or create member
-        var member = await dbContext.Members
-            .FirstOrDefaultAsync(m => m.Email == email || m.Phone == phone, cancellationToken);
+        // 1. Locate or create member (prioritize exact Email match before Phone fallback; prevent silent cross-account collision)
+        var byEmail = await dbContext.Members
+            .FirstOrDefaultAsync(m => m.Email == email, cancellationToken);
+        var byPhone = await dbContext.Members
+            .FirstOrDefaultAsync(m => m.Phone == phone, cancellationToken);
+        var member = byEmail ?? byPhone;
 
         var now = DateTime.UtcNow;
 
@@ -117,7 +121,7 @@ public sealed class PortalController(GymDbContext dbContext) : ControllerBase
         }
 
         // 3. Create Subscription
-        var startsOn = request.StartsOn ?? DateOnly.FromDateTime(now);
+        var startsOn = request.StartsOn ?? GymClock.TodayVietnam(now);
         var endsOn = startsOn.AddDays(plan.DurationDays - 1);
 
         var subscription = new Subscription
@@ -207,9 +211,11 @@ public sealed class PortalController(GymDbContext dbContext) : ControllerBase
         }
 
         var trimmed = query.Trim().ToLowerInvariant();
+        var normalizedPhone = new string(trimmed.Where(char.IsDigit).ToArray());
         var member = await dbContext.Members.AsNoTracking()
             .FirstOrDefaultAsync(
-                m => (m.Email != null && m.Email.ToLower() == trimmed) || (m.Phone != null && m.Phone == trimmed),
+                m => (m.Email != null && m.Email.ToLower() == trimmed) ||
+                     (m.Phone != null && (m.Phone == trimmed || (normalizedPhone.Length >= 8 && m.Phone == normalizedPhone))),
                 cancellationToken);
 
         if (member is null)
@@ -255,6 +261,105 @@ public sealed class PortalController(GymDbContext dbContext) : ControllerBase
         return Ok(response);
     }
 
+    [HttpPost("invoices/{invoiceId:int}/receipt")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UploadInvoiceReceipt(
+        int invoiceId,
+        [FromForm] string query,
+        IFormFile file,
+        [FromServices] IFileService fileService,
+        [FromServices] IPaymentService paymentService,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return BadRequest(new ProblemDetails { Title = "Thiếu thông tin xác thực SĐT hoặc Email." });
+        }
+
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ProblemDetails { Title = "Vui lòng chọn ảnh biên lai chuyển khoản." });
+        }
+
+        var invoice = await dbContext.Invoices.AsNoTracking()
+            .SingleOrDefaultAsync(i => i.Id == invoiceId, cancellationToken);
+        if (invoice is null)
+        {
+            return NotFound(new ProblemDetails { Title = "Không tìm thấy hóa đơn." });
+        }
+
+        if (invoice.Status != InvoiceStatus.PendingPayment)
+        {
+            return Conflict(new ProblemDetails { Title = "Hóa đơn này không còn ở trạng thái chờ thanh toán." });
+        }
+
+        var trimmed = query.Trim().ToLowerInvariant();
+        var normalizedPhone = new string(trimmed.Where(char.IsDigit).ToArray());
+        var member = await dbContext.Members.AsNoTracking()
+            .SingleOrDefaultAsync(m => m.Id == invoice.MemberId, cancellationToken);
+        var matchesOwner = member is not null &&
+            ((member.Email != null && member.Email.ToLower() == trimmed) ||
+             (member.Phone != null && (member.Phone == trimmed || (normalizedPhone.Length >= 8 && member.Phone == normalizedPhone))));
+        if (!matchesOwner)
+        {
+            return Forbid();
+        }
+
+        GymManagement.Api.DTOs.Files.FileUploadDbDto.FileResponseDto uploaded;
+        try
+        {
+            uploaded = await fileService.UploadAsync(file, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new ProblemDetails { Title = ex.Message });
+        }
+
+        // If a pending payment already exists for this invoice, attach the receipt; otherwise create a pending BankTransfer payment for remaining balance.
+        var existingPending = await dbContext.Payments.AsNoTracking()
+            .Where(p => p.InvoiceId == invoiceId && p.Status == PaymentStatus.PendingConfirmation)
+            .OrderByDescending(p => p.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingPending is not null)
+        {
+            var attached = await paymentService.AttachReceiptAsync(existingPending.Id, uploaded.Id, cancellationToken);
+            if (attached.Error is not null)
+            {
+                return Conflict(new ProblemDetails { Title = attached.Error.Value.ToString() });
+            }
+
+            return StatusCode(StatusCodes.Status201Created, new { paymentId = existingPending.Id, fileId = uploaded.Id });
+        }
+
+        var confirmedPaid = await dbContext.Payments.AsNoTracking()
+            .Where(p => p.InvoiceId == invoiceId && p.Status == PaymentStatus.Confirmed)
+            .SumAsync(p => (decimal?)p.Amount, cancellationToken) ?? 0m;
+        var remaining = Math.Max(1m, decimal.Truncate(invoice.TotalAmount) - confirmedPaid);
+        var systemUserId = await dbContext.Users.Select(u => u.Id).FirstOrDefaultAsync(cancellationToken);
+        if (systemUserId == 0) systemUserId = 1;
+
+        var created = await paymentService.CreateAsync(
+            invoiceId,
+            new GymManagement.Api.DTOs.Payments.CreatePaymentRequest
+            {
+                Amount = remaining,
+                Method = PaymentMethod.BankTransfer,
+                ReceiptFileId = uploaded.Id
+            },
+            systemUserId,
+            cancellationToken);
+
+        if (created.Error is not null)
+        {
+            return Conflict(new ProblemDetails { Title = created.Error.Value.ToString() });
+        }
+
+        return StatusCode(StatusCodes.Status201Created, new { paymentId = created.Payment!.Id, fileId = uploaded.Id });
+    }
+
     private static IReadOnlyList<string> GenerateHighlights(MembershipPlan plan)
     {
         var items = new List<string>
@@ -283,4 +388,3 @@ public sealed class PortalController(GymDbContext dbContext) : ControllerBase
         return items;
     }
 }
-

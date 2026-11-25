@@ -13,14 +13,16 @@ public interface IMemberService
 
     Task<MemberResponse?> GetByIdAsync(int id, CancellationToken cancellationToken);
 
-    Task<(MemberResponse? Member, bool EmailConflict)> CreateAsync(
+    Task<(MemberResponse? Member, bool EmailConflict, bool PhoneConflict)> CreateAsync(
         CreateMemberRequest request,
         CancellationToken cancellationToken);
 
-    Task<(MemberResponse? Member, bool EmailConflict)> UpdateAsync(
+    Task<(MemberResponse? Member, bool EmailConflict, bool PhoneConflict)> UpdateAsync(
         int id,
         UpdateMemberRequest request,
         CancellationToken cancellationToken);
 
     Task<bool> UpdateStatusAsync(int id, Models.MemberStatus status, CancellationToken cancellationToken);
+
+    Task<(bool Deleted, bool HasRelatedRecords)> DeleteAsync(int id, CancellationToken cancellationToken);
 }

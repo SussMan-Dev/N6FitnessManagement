@@ -12,3 +12,30 @@ public sealed record DashboardReportResponse(
     int SubscriptionsExpiringInSevenDays,
     decimal RevenueInRange,
     int CheckInsInRange);
+
+public sealed record ExpiringSubscriptionItemResponse(
+    int SubscriptionId,
+    int MemberId,
+    string MemberName,
+    string? MemberPhone,
+    string? MemberEmail,
+    string PlanName,
+    DateOnly EndsOn,
+    int DaysRemaining);
+
+public sealed record DailyMetricPoint(
+    DateOnly Date,
+    decimal Revenue,
+    int PaidInvoiceCount,
+    int CheckInCount);
+
+public sealed record TopPlanMetric(
+    string PlanName,
+    int SoldCount,
+    decimal TotalRevenue);
+
+public sealed record ReportAnalyticsResponse(
+    DateOnly From,
+    DateOnly To,
+    IReadOnlyList<DailyMetricPoint> DailySeries,
+    IReadOnlyList<TopPlanMetric> TopPlans);

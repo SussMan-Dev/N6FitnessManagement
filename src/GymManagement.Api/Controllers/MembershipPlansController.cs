@@ -33,6 +33,7 @@ public sealed class MembershipPlansController(IMembershipPlanService planService
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(MembershipPlanResponse), StatusCodes.Status201Created)]
     public async Task<ActionResult<MembershipPlanResponse>> Create(
         CreateMembershipPlanRequest request,
@@ -43,6 +44,7 @@ public sealed class MembershipPlansController(IMembershipPlanService planService
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(MembershipPlanResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MembershipPlanResponse>> Update(
@@ -55,6 +57,7 @@ public sealed class MembershipPlansController(IMembershipPlanService planService
     }
 
     [HttpPatch("{id:int}/status")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateStatus(
@@ -64,5 +67,24 @@ public sealed class MembershipPlansController(IMembershipPlanService planService
     {
         var updated = await planService.UpdateStatusAsync(id, request.IsActive, cancellationToken);
         return updated ? NoContent() : NotFound();
+    }
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var (deleted, hasRelatedRecords) = await planService.DeleteAsync(id, cancellationToken);
+        if (hasRelatedRecords)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Không thể xóa gói tập đã có hội viên đăng ký. Vui lòng chuyển sang Tạm ngừng."
+            });
+        }
+
+        return deleted ? NoContent() : NotFound();
     }
 }

@@ -24,4 +24,6 @@ public interface IMembershipPlanService
         CancellationToken cancellationToken);
 
     Task<bool> UpdateStatusAsync(int id, bool isActive, CancellationToken cancellationToken);
+
+    Task<(bool Deleted, bool HasRelatedRecords)> DeleteAsync(int id, CancellationToken cancellationToken);
 }

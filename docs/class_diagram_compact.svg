@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
+  <defs>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#f1f5f9" stroke-width="1" />
+    </pattern>
+
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0284c7" />
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#f59e0b" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#10b981" />
+    </marker>
+    <marker id="arrow-indigo" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#6366f1" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="720" fill="#f8fafc" />
+  <rect width="1280" height="720" fill="url(#grid)" />
+
+  <!-- Header Banner (Height 60px) -->
+  <rect x="0" y="0" width="1280" height="60" fill="#0f172a" />
+  <text x="35" y="37" font-family="Segoe UI, sans-serif" font-size="19" font-weight="800" fill="#ffffff" letter-spacing="0.5">
+    SƠ ĐỒ LỚP THỰC THỂ HỆ THỐNG GYM (COMPACT DOMAIN MODEL)
+  </text>
+  <text x="1245" y="36" text-anchor="end" font-family="Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#94a3b8">
+    Tỷ lệ 16:9 • Tối ưu cho trình chiếu Slide &amp; Báo cáo
+  </text>
+
+  <!-- Connectors -->
+  
+  <!-- Member -> Subscription -->
+  <path d="M 280 160 L 315 160 L 315 350 L 345 350" fill="none" stroke="#0284c7" stroke-width="2.2" marker-end="url(#arrow-blue)" />
+  <text x="288" y="152" font-family="Segoe UI" font-size="12" font-weight="700" fill="#0369a1">1</text>
+  <text x="325" y="342" font-family="Segoe UI" font-size="12" font-weight="700" fill="#0369a1">0..*</text>
+
+  <!-- Member -> CheckIn -->
+  <path d="M 160 225 L 160 285" fill="none" stroke="#0284c7" stroke-width="2.2" marker-end="url(#arrow-blue)" />
+  <text x="168" y="245" font-family="Segoe UI" font-size="12" font-weight="700" fill="#0369a1">1</text>
+  <text x="168" y="275" font-family="Segoe UI" font-size="12" font-weight="700" fill="#0369a1">0..*</text>
+
+  <!-- MembershipPlan -> Subscription -->
+  <path d="M 467 225 L 467 285" fill="none" stroke="#f59e0b" stroke-width="2.2" marker-end="url(#arrow-amber)" />
+  <text x="475" y="245" font-family="Segoe UI" font-size="12" font-weight="700" fill="#b45309">1</text>
+  <text x="475" y="275" font-family="Segoe UI" font-size="12" font-weight="700" fill="#b45309">0..*</text>
+
+  <!-- Subscription -> Invoice -->
+  <path d="M 590 365 L 655 365" fill="none" stroke="#10b981" stroke-width="2.2" marker-end="url(#arrow-green)" />
+  <text x="598" y="357" font-family="Segoe UI" font-size="12" font-weight="700" fill="#047857">1</text>
+  <text x="638" y="357" font-family="Segoe UI" font-size="12" font-weight="700" fill="#047857">1</text>
+
+  <!-- Invoice -> Payment -->
+  <path d="M 900 365 L 965 365" fill="none" stroke="#10b981" stroke-width="2.2" marker-end="url(#arrow-green)" />
+  <text x="908" y="357" font-family="Segoe UI" font-size="12" font-weight="700" fill="#047857">1</text>
+  <text x="945" y="357" font-family="Segoe UI" font-size="12" font-weight="700" fill="#047857">0..*</text>
+
+  <!-- Payment -> StoredFile -->
+  <path d="M 1097 460 L 1097 510" fill="none" stroke="#10b981" stroke-width="2.2" marker-end="url(#arrow-green)" />
+  <text x="1105" y="480" font-family="Segoe UI" font-size="12" font-weight="700" fill="#047857">1</text>
+  <text x="1105" y="502" font-family="Segoe UI" font-size="12" font-weight="700" fill="#047857">0..1 (Receipt)</text>
+
+  <!-- GymUser -> Invoice & Payment -->
+  <path d="M 965 160 L 780 160 L 780 285" fill="none" stroke="#6366f1" stroke-width="1.8" stroke-dasharray="4,3" marker-end="url(#arrow-indigo)" />
+  <text x="788" y="260" font-family="Segoe UI" font-size="11" font-weight="600" fill="#6366f1">CreatedBy</text>
+
+  <path d="M 1097 225 L 1097 285" fill="none" stroke="#6366f1" stroke-width="1.8" stroke-dasharray="4,3" marker-end="url(#arrow-indigo)" />
+  <text x="1105" y="255" font-family="Segoe UI" font-size="11" font-weight="600" fill="#6366f1">ReviewedBy</text>
+
+
+  <!-- Boxes -->
+  
+    <g class="uml-class">
+      <rect x="45" y="90" width="235" height="135" rx="8" fill="#000" opacity="0.04" transform="translate(0, 3)" />
+      <rect x="45" y="90" width="235" height="135" rx="8" fill="#ffffff" stroke="#0284c7" stroke-width="1.8" />
+      <path d="M 45 98 Q 45 90 53 90 L 272 90 Q 280 90 280 98 L 280 124 L 45 124 Z" fill="#e0f2fe" />
+      <line x1="45" y1="124" x2="280" y2="124" stroke="#0284c7" stroke-width="1.2" />
+      <text x="162.5" y="112" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#0369a1">
+        Member (Hội viên)
+      </text>
+      <text x="57" y="141" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Id : int (PK)</text><text x="57" y="160" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ FullName : string</text><text x="57" y="179" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Email &amp; Phone : string</text><text x="57" y="198" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Status : MemberStatus</text>
+    </g>
+  
+
+    <g class="uml-class">
+      <rect x="345" y="90" width="245" height="135" rx="8" fill="#000" opacity="0.04" transform="translate(0, 3)" />
+      <rect x="345" y="90" width="245" height="135" rx="8" fill="#ffffff" stroke="#f59e0b" stroke-width="1.8" />
+      <path d="M 345 98 Q 345 90 353 90 L 582 90 Q 590 90 590 98 L 590 124 L 345 124 Z" fill="#fef3c7" />
+      <line x1="345" y1="124" x2="590" y2="124" stroke="#f59e0b" stroke-width="1.2" />
+      <text x="467.5" y="112" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#b45309">
+        MembershipPlan (Gói tập)
+      </text>
+      <text x="357" y="141" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Id : int (PK)</text><text x="357" y="160" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Name : string</text><text x="357" y="179" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Price : decimal</text><text x="357" y="198" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ DurationDays : int</text>
+    </g>
+  
+
+    <g class="uml-class">
+      <rect x="965" y="90" width="265" height="135" rx="8" fill="#000" opacity="0.04" transform="translate(0, 3)" />
+      <rect x="965" y="90" width="265" height="135" rx="8" fill="#ffffff" stroke="#6366f1" stroke-width="1.8" />
+      <path d="M 965 98 Q 965 90 973 90 L 1222 90 Q 1230 90 1230 98 L 1230 124 L 965 124 Z" fill="#e0e7ff" />
+      <line x1="965" y1="124" x2="1230" y2="124" stroke="#6366f1" stroke-width="1.2" />
+      <text x="1097.5" y="112" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#4338ca">
+        GymUser (Admin / Staff)
+      </text>
+      <text x="977" y="141" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Id : int (PK)</text><text x="977" y="160" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ DisplayName : string</text><text x="977" y="179" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Email : string</text><text x="977" y="198" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Roles : &quot;Admin&quot; | &quot;Staff&quot;</text>
+    </g>
+  
+
+    <g class="uml-class">
+      <rect x="45" y="285" width="235" height="130" rx="8" fill="#000" opacity="0.04" transform="translate(0, 3)" />
+      <rect x="45" y="285" width="235" height="130" rx="8" fill="#ffffff" stroke="#0284c7" stroke-width="1.8" />
+      <path d="M 45 293 Q 45 285 53 285 L 272 285 Q 280 285 280 293 L 280 319 L 45 319 Z" fill="#e0f2fe" />
+      <line x1="45" y1="319" x2="280" y2="319" stroke="#0284c7" stroke-width="1.2" />
+      <text x="162.5" y="307" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#0369a1">
+        CheckIn (Điểm danh)
+      </text>
+      <text x="57" y="336" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Id : int (PK)</text><text x="57" y="355" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ MemberId : int (FK)</text><text x="57" y="374" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ CheckedInAtUtc : DateTime</text><text x="57" y="393" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ RecordedByUserId : int</text>
+    </g>
+  
+
+    <g class="uml-class">
+      <rect x="345" y="285" width="245" height="165" rx="8" fill="#000" opacity="0.04" transform="translate(0, 3)" />
+      <rect x="345" y="285" width="245" height="165" rx="8" fill="#ffffff" stroke="#f59e0b" stroke-width="1.8" />
+      <path d="M 345 293 Q 345 285 353 285 L 582 285 Q 590 285 590 293 L 590 319 L 345 319 Z" fill="#fef3c7" />
+      <line x1="345" y1="319" x2="590" y2="319" stroke="#f59e0b" stroke-width="1.2" />
+      <text x="467.5" y="307" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#b45309">
+        Subscription (Đăng ký)
+      </text>
+      <text x="357" y="336" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Id : int (PK)</text><text x="357" y="355" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ MemberId : int (FK)</text><text x="357" y="374" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ MembershipPlanId : int (FK)</text><text x="357" y="393" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ StartsOn &amp; EndsOn : DateOnly</text><text x="357" y="412" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Status : SubscriptionStatus</text><text x="357" y="431" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ RenewedFromId : int?</text>
+    </g>
+  
+
+    <g class="uml-class">
+      <rect x="655" y="285" width="245" height="165" rx="8" fill="#000" opacity="0.04" transform="translate(0, 3)" />
+      <rect x="655" y="285" width="245" height="165" rx="8" fill="#ffffff" stroke="#10b981" stroke-width="1.8" />
+      <path d="M 655 293 Q 655 285 663 285 L 892 285 Q 900 285 900 293 L 900 319 L 655 319 Z" fill="#d1fae5" />
+      <line x1="655" y1="319" x2="900" y2="319" stroke="#10b981" stroke-width="1.2" />
+      <text x="777.5" y="307" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#047857">
+        Invoice (Hóa đơn)
+      </text>
+      <text x="667" y="336" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Id : int (PK)</text><text x="667" y="355" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Number : string (Unique)</text><text x="667" y="374" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ MemberId &amp; SubscriptionId</text><text x="667" y="393" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ TotalAmount : decimal</text><text x="667" y="412" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Status : InvoiceStatus</text><text x="667" y="431" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ CreatedByUserId : int</text>
+    </g>
+  
+
+    <g class="uml-class">
+      <rect x="965" y="285" width="265" height="175" rx="8" fill="#000" opacity="0.04" transform="translate(0, 3)" />
+      <rect x="965" y="285" width="265" height="175" rx="8" fill="#ffffff" stroke="#10b981" stroke-width="1.8" />
+      <path d="M 965 293 Q 965 285 973 285 L 1222 285 Q 1230 285 1230 293 L 1230 319 L 965 319 Z" fill="#d1fae5" />
+      <line x1="965" y1="319" x2="1230" y2="319" stroke="#10b981" stroke-width="1.2" />
+      <text x="1097.5" y="307" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#047857">
+        Payment (Thanh toán)
+      </text>
+      <text x="977" y="336" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Id : int (PK)</text><text x="977" y="355" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ InvoiceId : int (FK)</text><text x="977" y="374" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Amount : decimal</text><text x="977" y="393" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Method : Cash | BankTransfer</text><text x="977" y="412" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Status : PaymentStatus</text><text x="977" y="431" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ ReceiptFileId : int? (FK)</text>
+    </g>
+  
+
+    <g class="uml-class">
+      <rect x="965" y="510" width="265" height="140" rx="8" fill="#000" opacity="0.04" transform="translate(0, 3)" />
+      <rect x="965" y="510" width="265" height="140" rx="8" fill="#ffffff" stroke="#10b981" stroke-width="1.8" />
+      <path d="M 965 518 Q 965 510 973 510 L 1222 510 Q 1230 510 1230 518 L 1230 544 L 965 544 Z" fill="#d1fae5" />
+      <line x1="965" y1="544" x2="1230" y2="544" stroke="#10b981" stroke-width="1.2" />
+      <text x="1097.5" y="532" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#047857">
+        StoredFile (Biên lai)
+      </text>
+      <text x="977" y="561" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Id : int (PK)</text><text x="977" y="580" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ FileName : string</text><text x="977" y="599" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ ContentType : string</text><text x="977" y="618" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Content : byte[] [BLOB]</text><text x="977" y="637" font-family="Segoe UI, sans-serif" font-size="12" fill="#334155">+ Length : long</text>
+    </g>
+  
+
+  <g transform="translate(45, 480)">
+    <rect x="0" y="0" width="855" height="170" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2" />
+    <path d="M 0 8 Q 0 0 8 0 L 847 0 Q 855 0 855 8 L 855 28 L 0 28 Z" fill="#f8fafc" />
+    <text x="14" y="19" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#475569">BẢNG QUY ƯỚC TRẠNG THÁI (ENUMERATIONS) &amp; PHÂN VÙNG NGHIỆP VỤ</text>
+    
+    <!-- Col 1 -->
+    <text x="18" y="52" font-family="Segoe UI" font-size="12" font-weight="700" fill="#0369a1">MemberStatus:</text>
+    <text x="18" y="72" font-family="Segoe UI" font-size="11.5" fill="#475569">• Active (Hoạt động) | Inactive | Suspended</text>
+
+    <text x="18" y="105" font-family="Segoe UI" font-size="12" font-weight="700" fill="#b45309">SubscriptionStatus:</text>
+    <text x="18" y="125" font-family="Segoe UI" font-size="11.5" fill="#475569">• PendingPayment (Chờ TT) | Active (Hiệu lực)</text>
+    <text x="18" y="145" font-family="Segoe UI" font-size="11.5" fill="#475569">• Expired (Hết hạn) | Cancelled (Đã hủy)</text>
+
+    <!-- Col 2 -->
+    <text x="360" y="52" font-family="Segoe UI" font-size="12" font-weight="700" fill="#047857">InvoiceStatus &amp; PaymentMethod:</text>
+    <text x="360" y="72" font-family="Segoe UI" font-size="11.5" fill="#475569">• Invoice: PendingPayment | Paid | Voided</text>
+    <text x="360" y="92" font-family="Segoe UI" font-size="11.5" fill="#475569">• Method: Cash (Tiền mặt) | BankTransfer (CK)</text>
+
+    <text x="360" y="122" font-family="Segoe UI" font-size="12" font-weight="700" fill="#047857">PaymentStatus:</text>
+    <text x="360" y="142" font-family="Segoe UI" font-size="11.5" fill="#475569">• PendingConfirmation | Confirmed | Rejected</text>
+
+    <!-- Col 3: Color tags -->
+    <rect x="685" y="44" width="12" height="12" rx="3" fill="#0284c7" />
+    <text x="705" y="55" font-family="Segoe UI" font-size="11.5" font-weight="600" fill="#334155">Hội viên / Check-in</text>
+
+    <rect x="685" y="74" width="12" height="12" rx="3" fill="#f59e0b" />
+    <text x="705" y="85" font-family="Segoe UI" font-size="11.5" font-weight="600" fill="#334155">Gói tập / Đăng ký</text>
+
+    <rect x="685" y="104" width="12" height="12" rx="3" fill="#10b981" />
+    <text x="705" y="115" font-family="Segoe UI" font-size="11.5" font-weight="600" fill="#334155">Hóa đơn &amp; Thu tiền</text>
+
+    <rect x="685" y="134" width="12" height="12" rx="3" fill="#6366f1" />
+    <text x="705" y="145" font-family="Segoe UI" font-size="11.5" font-weight="600" fill="#334155">Nhân viên / Admin</text>
+  </g>
+  
+
+  <!-- Footer -->
+  <text x="45" y="695" font-family="Segoe UI" font-size="11.5" font-weight="500" fill="#94a3b8">
+    ASP.NET Core Web API • Entity Framework Core • MySQL Database • Đã cập nhật tính năng lưu trữ biên lai chuyển khoản (StoredFiles)
+  </text>
+</svg>

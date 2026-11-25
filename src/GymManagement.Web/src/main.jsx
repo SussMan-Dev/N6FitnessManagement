@@ -14,6 +14,7 @@ import {
   Menu,
   Repeat2,
   ScanLine,
+  Search,
   ShieldCheck,
   Sparkles,
   Users,
@@ -22,9 +23,12 @@ import {
 } from 'lucide-react';
 import { BrowserRouter, Link, NavLink, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { api, clearSession, getSession, saveSession } from './api';
+import { CommandPalette } from './commandPalette';
+import { ToastProvider } from './toast';
 import {
   CheckInsPage,
   DashboardPage,
+  InvoiceDetailPage,
   InvoicesPage,
   PaymentsPage,
   ReportsPage,
@@ -99,7 +103,7 @@ function LoginPage({ onLogin }) {
   return (
     <main className="login-screen">
       <section className="login-aside" aria-label="Gym Manager">
-        <div className="brand brand-large"><span className="brand-mark">G</span><span>GYM<br />MANAGER</span></div>
+        <div className="brand brand-large"><span className="brand-mark"><Dumbbell size={26} strokeWidth={2.5} /></span><span>GYM<br />MANAGER</span></div>
         <div className="login-aside-copy">
           <p className="eyebrow">CLUB OPERATIONS</p>
           <h1>Vận hành phòng tập, rõ từng nhịp.</h1>
@@ -109,7 +113,7 @@ function LoginPage({ onLogin }) {
       </section>
       <section className="login-main">
         <form className="login-form" onSubmit={submit}>
-          <div className="login-mobile-brand brand"><span className="brand-mark">G</span><span>GYM MANAGER</span></div>
+          <div className="login-mobile-brand brand"><span className="brand-mark"><Dumbbell size={20} strokeWidth={2.5} /></span><span>GYM MANAGER</span></div>
           <p className="eyebrow">STAFF ACCESS</p>
           <h2>Đăng nhập</h2>
           <p className="muted">Dùng tài khoản nhân viên do quản trị viên cấp.</p>
@@ -141,6 +145,7 @@ function LoginPage({ onLogin }) {
 
 function AppShell({ session, onLogout }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const isAdmin = session.roles?.includes('Admin');
   const todayLabel = new Intl.DateTimeFormat('vi-VN', {
     weekday: 'long',
@@ -149,10 +154,21 @@ function AppShell({ session, onLogout }) {
     year: 'numeric',
   }).format(new Date());
 
+  useEffect(() => {
+    function onKeyDown(event) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCmdOpen(prev => !prev);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobileNavOpen ? 'sidebar-open' : ''}`}>
-        <div className="brand sidebar-brand"><span className="brand-mark">G</span><span>GYM MANAGER<small>CLUB OPERATIONS</small></span></div>
+        <div className="brand sidebar-brand"><span className="brand-mark"><Dumbbell size={20} strokeWidth={2.5} /></span><span>GYM MANAGER<small>CLUB OPERATIONS</small></span></div>
         <nav className="primary-nav" aria-label="Điều hướng chính">
           {navigationGroups.map(group => (
             <div className="nav-group" key={group.label}>
@@ -186,6 +202,16 @@ function AppShell({ session, onLogout }) {
             {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <div className="topbar-context"><span className="topbar-kicker">FITNESS MANAGEMENT</span><span>{todayLabel}</span></div>
+          <button
+            type="button"
+            className="topbar-search-trigger"
+            onClick={() => setCmdOpen(true)}
+            title="Mở thanh tìm kiếm & điều hướng nhanh (Ctrl + K)"
+          >
+            <Search size={15} />
+            <span className="search-trigger-placeholder">Tìm kiếm trang hoặc tác vụ…</span>
+            <kbd className="cmd-pill">Ctrl K</kbd>
+          </button>
           <div className="topbar-right-actions">
             <Link to="/portal" target="_blank" rel="noreferrer" className="topbar-portal-btn" title="Mở cổng khách hàng & đăng ký gói tập">
               <Globe size={15} /> <span>Cổng khách hàng</span> <ExternalLink size={12} />
@@ -197,6 +223,13 @@ function AppShell({ session, onLogout }) {
         <main className="page-content"><Outlet /></main>
         <footer className="app-footer"><span>GYM MANAGER</span><span>Vận hành nội bộ · v1.0</span></footer>
       </div>
+
+      <CommandPalette
+        isOpen={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        onLogout={onLogout}
+        isAdmin={isAdmin}
+      />
     </div>
   );
 }
@@ -237,10 +270,16 @@ function App() {
     return () => window.removeEventListener('gym:session-expired', onExpired);
   }, [navigate]);
 
-  function logout() {
-    clearSession();
-    setSession(null);
-    navigate('/login', { replace: true });
+  async function logout() {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+    } catch {
+      // Proceed to clear local state even if offline
+    } finally {
+      clearSession();
+      setSession(null);
+      navigate('/login', { replace: true });
+    }
   }
 
   return (
@@ -265,6 +304,7 @@ function App() {
           <Route path="trainers" element={<ResourcePage type="trainers" />} />
           <Route path="subscriptions" element={<SubscriptionsPage />} />
           <Route path="invoices" element={<InvoicesPage />} />
+          <Route path="invoices/:id" element={<InvoiceDetailPage />} />
           <Route path="payments" element={<PaymentsPage />} />
           <Route path="checkins" element={<CheckInsPage />} />
           <Route path="reports" element={<ReportsPage />} />
@@ -279,5 +319,13 @@ function App() {
 }
 
 const root = import.meta.hot?.data.root ?? createRoot(document.getElementById('root'));
-root.render(<BrowserRouter><AppErrorBoundary><App /></AppErrorBoundary></BrowserRouter>);
+root.render(
+  <BrowserRouter>
+    <AppErrorBoundary>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
+    </AppErrorBoundary>
+  </BrowserRouter>
+);
 if (import.meta.hot) import.meta.hot.dispose(data => { data.root = root; });

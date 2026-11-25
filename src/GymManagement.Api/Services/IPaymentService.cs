@@ -32,6 +32,10 @@ public interface IPaymentService
 
     Task<PagedResponse<PaymentResponse>> SearchAsync(
         int? invoiceId,
+        GymManagement.Api.Models.PaymentStatus? status,
+        string? search,
+        DateOnly? from,
+        DateOnly? to,
         int page,
         int pageSize,
         CancellationToken cancellationToken);
