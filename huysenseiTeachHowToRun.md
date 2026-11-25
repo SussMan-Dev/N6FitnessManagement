@@ -83,6 +83,16 @@ Mở địa chỉ Vite hiển thị trong terminal, thường là `http://localh
 
 Đăng nhập bằng tài khoản bootstrap đã cấu hình ở bước 2. Nếu cổng 5173 đã được dùng, Vite sẽ hiển thị cổng khác; dùng đúng URL được in trong terminal.
 
+## 5. Xác nhận ứng dụng đã sẵn sàng
+
+Trong khi cả hai terminal vẫn đang chạy, mở các địa chỉ sau:
+
+- `http://localhost:5187/swagger` để xác nhận API phản hồi và xem các endpoint.
+- URL Vite được in ra ở bước 4 (mặc định `http://localhost:5173`) để xác nhận frontend hiển thị.
+- `/portal/plans` trên URL Vite để mở trang gói tập công khai.
+
+Nếu frontend hiển thị nhưng các thao tác dữ liệu lỗi, xác nhận API vẫn chạy và Vite proxy đang trỏ tới port backend `5187`. Nếu port khác đã được chọn cho API, cập nhật target proxy trong `src/GymManagement.Web/vite.config.js` cho khớp rồi khởi động lại Vite.
+
 ## Dừng ứng dụng
 
 Nhấn `Ctrl+C` trong từng terminal để dừng backend và frontend.
