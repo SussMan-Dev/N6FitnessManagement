@@ -1,6 +1,6 @@
 # TÀI LIỆU CẢI TIẾN GIAO DIỆN & TRẢI NGHIỆM NGƯỜI DÙNG (UI/UX ENHANCEMENTS)
 **Thành viên thực hiện:** Nguyễn Việt Anh (Fullstack & UI/UX Developer - Nhóm 6, Lớp ST23A)  
-**Nhánh Git:** `feat/vietanh-ui-ux-enhancement`  
+**Nhánh Git:** `feature/ui-ux-cyber-dark-theme`  
 
 ---
 
