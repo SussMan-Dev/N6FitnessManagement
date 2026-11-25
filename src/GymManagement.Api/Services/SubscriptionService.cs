@@ -140,7 +140,8 @@ public sealed class SubscriptionService(GymDbContext dbContext) : ISubscriptionS
 
     public async Task<(SubscriptionResponse? Subscription, SubscriptionError? Error)> CancelAsync(
         int subscriptionId,
-        CancellationToken cancellationToken)
+        string? reason = null,
+        CancellationToken cancellationToken = default)
     {
         var subscription = await dbContext.Subscriptions.SingleOrDefaultAsync(item => item.Id == subscriptionId, cancellationToken);
         if (subscription is null)
@@ -148,7 +149,7 @@ public sealed class SubscriptionService(GymDbContext dbContext) : ISubscriptionS
             return (null, SubscriptionError.SubscriptionNotFound);
         }
 
-        if (subscription.Status != SubscriptionStatus.PendingPayment)
+        if (subscription.Status is not (SubscriptionStatus.PendingPayment or SubscriptionStatus.Active))
         {
             return (null, SubscriptionError.SubscriptionNotCancellable);
         }
@@ -156,21 +157,28 @@ public sealed class SubscriptionService(GymDbContext dbContext) : ISubscriptionS
         var linkedInvoices = await dbContext.Invoices
             .Where(i => i.SubscriptionId == subscriptionId && i.Status == InvoiceStatus.PendingPayment)
             .ToListAsync(cancellationToken);
-        var linkedInvoiceIds = linkedInvoices.Select(i => i.Id).ToList();
-        if (linkedInvoiceIds.Count > 0)
+
+        if (linkedInvoices.Count > 0)
         {
-            var hasConfirmedPayments = await dbContext.Payments.AnyAsync(
-                p => linkedInvoiceIds.Contains(p.InvoiceId) && p.Status == PaymentStatus.Confirmed,
-                cancellationToken);
-            if (hasConfirmedPayments)
+            var linkedInvoiceIds = linkedInvoices.Select(i => i.Id).ToList();
+            var invoiceIdsWithConfirmedPayments = await dbContext.Payments
+                .Where(p => linkedInvoiceIds.Contains(p.InvoiceId) && p.Status == PaymentStatus.Confirmed)
+                .Select(p => p.InvoiceId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            if (subscription.Status == SubscriptionStatus.PendingPayment && invoiceIdsWithConfirmedPayments.Count > 0)
             {
                 return (null, SubscriptionError.SubscriptionHasConfirmedPayments);
             }
 
             foreach (var inv in linkedInvoices)
             {
-                inv.Status = InvoiceStatus.Voided;
-                inv.Version++;
+                if (!invoiceIdsWithConfirmedPayments.Contains(inv.Id))
+                {
+                    inv.Status = InvoiceStatus.Voided;
+                    inv.Version++;
+                }
             }
         }
 

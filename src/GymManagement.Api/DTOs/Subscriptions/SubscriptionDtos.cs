@@ -28,6 +28,12 @@ public sealed class FreezeSubscriptionRequest
     public int Days { get; init; }
 }
 
+public sealed class CancelSubscriptionRequest
+{
+    [StringLength(500)]
+    public string? Reason { get; init; }
+}
+
 public enum SubscriptionError
 {
     MemberNotFound,

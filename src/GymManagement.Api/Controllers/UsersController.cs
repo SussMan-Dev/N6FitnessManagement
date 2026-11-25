@@ -10,7 +10,9 @@ namespace GymManagement.Api.Controllers;
 // Authorization: only an Admin token can manage staff accounts.
 [Authorize(Roles = "Admin")]
 [Route("api/users")]
-public sealed class UsersController(IUserManagementService userManagementService) : ControllerBase
+public sealed class UsersController(
+    IUserManagementService userManagementService,
+    IAuditLogService auditLogService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<StaffResponse>), StatusCodes.Status200OK)]
@@ -43,6 +45,15 @@ public sealed class UsersController(IUserManagementService userManagementService
         {
             return BadRequest(new { Errors = result.Errors });
         }
+
+        await auditLogService.LogAsync(
+            "Staff.Create",
+            "User",
+            result.Staff.Id,
+            $"Tạo tài khoản nhân viên {result.Staff.DisplayName} ({result.Staff.Email})",
+            $"Quyền: {string.Join(", ", result.Staff.Roles)}",
+            User,
+            cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = result.Staff.Id }, result.Staff);
     }
@@ -105,7 +116,21 @@ public sealed class UsersController(IUserManagementService userManagementService
             return BadRequest(new { Message = error });
         }
 
-        return staff is null ? NotFound() : Ok(staff);
+        if (staff is null)
+        {
+            return NotFound();
+        }
+
+        await auditLogService.LogAsync(
+            "Staff.ToggleStatus",
+            "User",
+            id,
+            staff.IsActive ? $"Mở khóa tài khoản nhân viên {staff.DisplayName}" : $"Khóa tài khoản nhân viên {staff.DisplayName}",
+            staff.Email,
+            User,
+            cancellationToken);
+
+        return Ok(staff);
     }
 
     [HttpDelete("{id:int}")]

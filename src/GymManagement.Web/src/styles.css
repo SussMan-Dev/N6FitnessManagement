@@ -4558,3 +4558,32 @@ h1, h2, h3, .brand, .metric strong { font-family: 'Space Grotesk', 'Trebuchet MS
 .report-detail {
   margin-top: 24px;
 }
+
+/* Grouped Sidebar Navigation & Audit Log Badges */
+.sidebar-nav-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-right: 2px;
+  margin-bottom: 12px;
+}
+.sidebar-nav-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-nav-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 4px; }
+.nav-group { display: flex; flex-direction: column; }
+.nav-group .nav-caption { margin: 0 0 7px; }
+.audit-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.audit-badge-success { background: rgba(34, 197, 94, 0.16); color: #86efac; }
+.audit-badge-danger { background: rgba(244, 63, 94, 0.18); color: #fda4af; }
+.audit-badge-warn { background: rgba(250, 204, 21, 0.16); color: #fde047; }
+.audit-badge-neutral { background: rgba(148, 163, 184, 0.16); color: #cbd5e1; }

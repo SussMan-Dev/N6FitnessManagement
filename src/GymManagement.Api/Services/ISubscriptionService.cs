@@ -22,7 +22,8 @@ public interface ISubscriptionService
 
     Task<(SubscriptionResponse? Subscription, SubscriptionError? Error)> CancelAsync(
         int subscriptionId,
-        CancellationToken cancellationToken);
+        string? reason = null,
+        CancellationToken cancellationToken = default);
 
     Task<(SubscriptionResponse? Subscription, SubscriptionError? Error)> FreezeAsync(
         int subscriptionId,

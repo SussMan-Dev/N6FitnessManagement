@@ -10,7 +10,9 @@ namespace GymManagement.Api.Controllers;
 [ApiController]
 [Authorize(Roles = "Admin,Staff")]
 [Route("api/invoices")]
-public sealed class InvoicesController(IInvoiceService invoiceService) : ControllerBase
+public sealed class InvoicesController(
+    IInvoiceService invoiceService,
+    IAuditLogService auditLogService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(PagedResponse<InvoiceResponse>), StatusCodes.Status200OK)]
@@ -61,6 +63,18 @@ public sealed class InvoicesController(IInvoiceService invoiceService) : Control
             };
         }
 
+        var memberLabel = string.IsNullOrWhiteSpace(invoice!.MemberName)
+            ? $"#{invoice.MemberId}"
+            : invoice.MemberName + (string.IsNullOrWhiteSpace(invoice.MemberPhone) ? "" : $" ({invoice.MemberPhone})");
+        await auditLogService.LogAsync(
+            "Invoice.Void",
+            "Invoice",
+            id,
+            $"Hủy hóa đơn {invoice.Number} · gói {invoice.PlanNameSnapshot} của hội viên {memberLabel}",
+            $"MemberId={invoice.MemberId} · Số tiền: {invoice.TotalAmount:N0}đ",
+            User,
+            cancellationToken);
+
         return Ok(invoice);
     }
 
@@ -83,7 +97,20 @@ public sealed class InvoicesController(IInvoiceService invoiceService) : Control
             return ToErrorResult(result.Error.Value);
         }
 
-        return CreatedAtAction(nameof(GetById), new { id = result.Invoice!.Id }, result.Invoice);
+        var inv = result.Invoice!;
+        var memberLabel = string.IsNullOrWhiteSpace(inv.MemberName)
+            ? $"#{inv.MemberId}"
+            : inv.MemberName + (string.IsNullOrWhiteSpace(inv.MemberPhone) ? "" : $" ({inv.MemberPhone})");
+        await auditLogService.LogAsync(
+            "Invoice.Create",
+            "Invoice",
+            inv.Id,
+            $"Lập hóa đơn {inv.Number} · gói {inv.PlanNameSnapshot} cho hội viên {memberLabel} ({inv.TotalAmount:N0}đ)",
+            $"MemberId={inv.MemberId} · SubscriptionId={inv.SubscriptionId}",
+            User,
+            cancellationToken);
+
+        return CreatedAtAction(nameof(GetById), new { id = inv.Id }, inv);
     }
 
     private bool TryGetActorId(out int actorId) =>

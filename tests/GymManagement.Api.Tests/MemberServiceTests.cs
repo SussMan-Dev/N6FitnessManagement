@@ -110,6 +110,44 @@ public sealed class MemberServiceTests
         Assert.AreEqual(100, result.PageSize);
     }
 
+    [TestMethod]
+    public async Task DeleteAsync_BlocksActiveSubscription_AllowsAfterCancellation()
+    {
+        await using var database = await RelationalTestDatabase.CreateAsync();
+        var dbContext = database.DbContext;
+
+        var member = new Member { FirstName = "Van B", LastName = "Nguyen", Phone = "0388775804", JoinedAtUtc = DateTime.UtcNow, Status = MemberStatus.Active };
+        var plan = new MembershipPlan { Name = "VIP", Price = 500000m, DurationDays = 90, IsActive = true };
+        dbContext.Members.Add(member);
+        dbContext.MembershipPlans.Add(plan);
+        await dbContext.SaveChangesAsync();
+
+        var sub = new Subscription
+        {
+            MemberId = member.Id,
+            MembershipPlanId = plan.Id,
+            StartsOn = new DateOnly(2026, 11, 1),
+            EndsOn = new DateOnly(2027, 2, 1),
+            CreatedAtUtc = DateTime.UtcNow,
+            Status = SubscriptionStatus.Active
+        };
+        dbContext.Subscriptions.Add(sub);
+        await dbContext.SaveChangesAsync();
+
+        var memberService = new MemberService(dbContext);
+        var blocked = await memberService.DeleteAsync(member.Id, CancellationToken.None);
+        Assert.IsFalse(blocked.Deleted);
+        Assert.IsTrue(blocked.HasRelatedRecords);
+
+        var subService = new SubscriptionService(dbContext);
+        var cancelled = await subService.CancelAsync(sub.Id, "Hủy để xóa hồ sơ", CancellationToken.None);
+        Assert.IsNull(cancelled.Error);
+
+        var deleted = await memberService.DeleteAsync(member.Id, CancellationToken.None);
+        Assert.IsTrue(deleted.Deleted);
+        Assert.IsFalse(deleted.HasRelatedRecords);
+    }
+
     private static GymDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<GymDbContext>()

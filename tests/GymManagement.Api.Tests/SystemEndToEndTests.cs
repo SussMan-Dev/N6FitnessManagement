@@ -111,7 +111,7 @@ public sealed class SystemEndToEndTests
         // Case A: Unpaid pending subscription + invoice -> Cancel cancels sub and auto-voids invoice
         var subA = (await subService.CreateAsync(new CreateSubscriptionRequest { MemberId = member.Id, MembershipPlanId = plan.Id }, CancellationToken.None)).Subscription!;
         var invA = (await invService.CreateAsync(new CreateInvoiceRequest { SubscriptionId = subA.Id }, 1, CancellationToken.None)).Invoice!;
-        var cancelled = await subService.CancelAsync(subA.Id, CancellationToken.None);
+        var cancelled = await subService.CancelAsync(subA.Id, null, CancellationToken.None);
         Assert.IsNull(cancelled.Error);
         Assert.AreEqual(SubscriptionStatus.Cancelled, cancelled.Subscription!.Status);
         Assert.AreEqual(InvoiceStatus.Voided, (await db.Invoices.SingleAsync(i => i.Id == invA.Id)).Status);

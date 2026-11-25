@@ -29,6 +29,8 @@ public sealed class GymDbContext(DbContextOptions<GymDbContext> options)
 
     public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
 
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -163,6 +165,22 @@ public sealed class GymDbContext(DbContextOptions<GymDbContext> options)
             entity.Property(file => file.FileName).HasMaxLength(255).IsRequired();
             entity.Property(file => file.ContentType).HasMaxLength(100).IsRequired();
             entity.Property(file => file.Content).IsRequired();
+        });
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.ToTable("AuditLogs");
+            entity.HasKey(log => log.Id);
+            entity.Property(log => log.Action).HasMaxLength(80).IsRequired();
+            entity.Property(log => log.EntityType).HasMaxLength(50).IsRequired();
+            entity.Property(log => log.Summary).HasMaxLength(300).IsRequired();
+            entity.Property(log => log.Details).HasMaxLength(1000);
+            entity.Property(log => log.ActorName).HasMaxLength(120).IsRequired();
+            entity.Property(log => log.ActorEmail).HasMaxLength(254);
+            entity.HasIndex(log => log.CreatedAtUtc);
+            entity.HasIndex(log => log.EntityType);
+            entity.HasIndex(log => log.Action);
+            entity.HasIndex(log => log.ActorUserId);
         });
     }
 }

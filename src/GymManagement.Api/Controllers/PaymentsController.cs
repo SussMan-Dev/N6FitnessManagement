@@ -10,7 +10,10 @@ namespace GymManagement.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "Admin,Staff")]
-public sealed class PaymentsController(IPaymentService paymentService, IFileService fileService) : ControllerBase
+public sealed class PaymentsController(
+    IPaymentService paymentService,
+    IFileService fileService,
+    IAuditLogService auditLogService) : ControllerBase
 {
     [HttpGet("api/payments")]
     [ProducesResponseType(typeof(PagedResponse<PaymentResponse>), StatusCodes.Status200OK)]
@@ -56,7 +59,21 @@ public sealed class PaymentsController(IPaymentService paymentService, IFileServ
             return ToErrorResult(result.Error.Value);
         }
 
-        return CreatedAtAction(nameof(GetById), new { id = result.Payment!.Id }, result.Payment);
+        var pmt = result.Payment!;
+        var memberLabel = string.IsNullOrWhiteSpace(pmt.MemberName)
+            ? $"HĐ {pmt.InvoiceNumber ?? $"#{invoiceId}"}"
+            : pmt.MemberName + (string.IsNullOrWhiteSpace(pmt.MemberPhone) ? "" : $" ({pmt.MemberPhone})");
+        var methodLabel = pmt.Method == Models.PaymentMethod.BankTransfer ? "Chuyển khoản" : "Tiền mặt";
+        await auditLogService.LogAsync(
+            "Payment.Create",
+            "Payment",
+            pmt.Id,
+            $"Ghi nhận thanh toán PAY-{pmt.Id:D5} ({pmt.Amount:N0}đ) cho hội viên {memberLabel}",
+            $"Hóa đơn {pmt.InvoiceNumber ?? $"#{invoiceId}"} · {methodLabel}",
+            User,
+            cancellationToken);
+
+        return CreatedAtAction(nameof(GetById), new { id = pmt.Id }, pmt);
     }
 
     [HttpPost("api/payments/{id:int}/receipt")]
@@ -157,7 +174,25 @@ public sealed class PaymentsController(IPaymentService paymentService, IFileServ
         }
 
         var result = await paymentService.ConfirmAsync(id, request, actorId, cancellationToken);
-        return result.Error is not null ? ToErrorResult(result.Error.Value) : Ok(result.Payment);
+        if (result.Error is not null)
+        {
+            return ToErrorResult(result.Error.Value);
+        }
+
+        var confirmed = result.Payment!;
+        var confirmedMember = string.IsNullOrWhiteSpace(confirmed.MemberName)
+            ? $"HĐ {confirmed.InvoiceNumber ?? $"#{confirmed.InvoiceId}"}"
+            : confirmed.MemberName + (string.IsNullOrWhiteSpace(confirmed.MemberPhone) ? "" : $" ({confirmed.MemberPhone})");
+        await auditLogService.LogAsync(
+            "Payment.Confirm",
+            "Payment",
+            id,
+            $"Xác nhận thu tiền PAY-{id:D5} ({confirmed.Amount:N0}đ) của hội viên {confirmedMember}",
+            $"Hóa đơn {confirmed.InvoiceNumber ?? $"#{confirmed.InvoiceId}"}" + (string.IsNullOrWhiteSpace(request.Reference) ? "" : $" · Mã GD: {request.Reference}"),
+            User,
+            cancellationToken);
+
+        return Ok(confirmed);
     }
 
     [HttpPost("api/payments/{id:int}/reject")]
@@ -175,7 +210,25 @@ public sealed class PaymentsController(IPaymentService paymentService, IFileServ
         }
 
         var result = await paymentService.RejectAsync(id, request, actorId, cancellationToken);
-        return result.Error is not null ? ToErrorResult(result.Error.Value) : Ok(result.Payment);
+        if (result.Error is not null)
+        {
+            return ToErrorResult(result.Error.Value);
+        }
+
+        var rejected = result.Payment!;
+        var rejectedMember = string.IsNullOrWhiteSpace(rejected.MemberName)
+            ? $"HĐ {rejected.InvoiceNumber ?? $"#{rejected.InvoiceId}"}"
+            : rejected.MemberName + (string.IsNullOrWhiteSpace(rejected.MemberPhone) ? "" : $" ({rejected.MemberPhone})");
+        await auditLogService.LogAsync(
+            "Payment.Reject",
+            "Payment",
+            id,
+            $"Từ chối thanh toán PAY-{id:D5} ({rejected.Amount:N0}đ) của hội viên {rejectedMember}",
+            $"Hóa đơn {rejected.InvoiceNumber ?? $"#{rejected.InvoiceId}"} · Lý do: {request.Reason}",
+            User,
+            cancellationToken);
+
+        return Ok(rejected);
     }
 
     private bool TryGetActorId(out int actorId) =>

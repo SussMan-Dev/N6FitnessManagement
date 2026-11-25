@@ -159,6 +159,7 @@ builder.Services.AddScoped<ITrainerService, TrainerService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddHostedService<IdentityBootstrapper>();
 
 var app = builder.Build();

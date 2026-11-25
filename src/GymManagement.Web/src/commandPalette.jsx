@@ -7,6 +7,7 @@ import {
   Dumbbell,
   FileText,
   Globe,
+  History,
   LayoutDashboard,
   LogOut,
   Repeat2,
@@ -29,6 +30,7 @@ const defaultCommands = [
   { id: 'payments', title: 'Đối soát & Xác nhận thanh toán', category: 'Tài chính', icon: CreditCard, path: '/payments' },
   { id: 'reports', title: 'Báo cáo doanh thu & hội viên', category: 'Phân tích', icon: BarChart3, path: '/reports' },
   { id: 'trainers', title: 'Đội ngũ Huấn luyện viên (PT)', category: 'Vận hành', icon: Dumbbell, path: '/trainers' },
+  { id: 'audit-logs', title: 'Lịch sử thao tác hệ thống', category: 'Hệ thống', icon: History, path: '/audit-logs' },
   { id: 'portal', title: 'Mở Cổng khách hàng (Customer Portal)', category: 'Liên kết ngoài', icon: Globe, path: '/portal', external: true },
 ];
 

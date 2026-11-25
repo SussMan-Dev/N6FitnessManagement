@@ -10,7 +10,9 @@ namespace GymManagement.Api.Controllers;
 // Authorization: both Admin and Staff tokens may use member operations.
 [Authorize(Roles = "Admin,Staff")]
 [Route("api/members")]
-public sealed class MembersController(IMemberService memberService) : ControllerBase
+public sealed class MembersController(
+    IMemberService memberService,
+    IAuditLogService auditLogService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(PagedResponse<MemberResponse>), StatusCodes.Status200OK)]
@@ -50,7 +52,16 @@ public sealed class MembersController(IMemberService memberService) : Controller
             return Conflict(new ProblemDetails { Title = "Số điện thoại này đã được sử dụng bởi hội viên khác." });
         }
 
-        return CreatedAtAction(nameof(GetById), new { id = result.Member!.Id }, result.Member);
+        await auditLogService.LogAsync(
+            "Member.Create",
+            "Member",
+            result.Member!.Id,
+            $"Thêm hội viên {result.Member.FirstName} {result.Member.LastName}".Trim(),
+            $"SĐT: {result.Member.Phone ?? "—"} · Email: {result.Member.Email ?? "—"}",
+            User,
+            cancellationToken);
+
+        return CreatedAtAction(nameof(GetById), new { id = result.Member.Id }, result.Member);
     }
 
     [HttpPut("{id:int}")]
@@ -73,7 +84,21 @@ public sealed class MembersController(IMemberService memberService) : Controller
             return Conflict(new ProblemDetails { Title = "Số điện thoại này đã được sử dụng bởi hội viên khác." });
         }
 
-        return result.Member is null ? NotFound() : Ok(result.Member);
+        if (result.Member is null)
+        {
+            return NotFound();
+        }
+
+        await auditLogService.LogAsync(
+            "Member.Update",
+            "Member",
+            id,
+            $"Cập nhật hội viên {result.Member.FirstName} {result.Member.LastName}".Trim(),
+            $"SĐT: {result.Member.Phone ?? "—"} · Trạng thái: {result.Member.Status}",
+            User,
+            cancellationToken);
+
+        return Ok(result.Member);
     }
 
     [HttpPatch("{id:int}/status")]
@@ -84,8 +109,27 @@ public sealed class MembersController(IMemberService memberService) : Controller
         UpdateMemberStatusRequest request,
         CancellationToken cancellationToken)
     {
+        var existing = await memberService.GetByIdAsync(id, cancellationToken);
         var updated = await memberService.UpdateStatusAsync(id, request.Status, cancellationToken);
-        return updated ? NoContent() : NotFound();
+        if (!updated)
+        {
+            return NotFound();
+        }
+
+        var memberLabel = existing is null
+            ? $"#{id}"
+            : $"{existing.FirstName} {existing.LastName}".Trim() + (string.IsNullOrWhiteSpace(existing.Phone) ? "" : $" ({existing.Phone})");
+        var statusLabel = request.Status == Models.MemberStatus.Active ? "Đang hoạt động" : "Tạm ngừng";
+        await auditLogService.LogAsync(
+            "Member.UpdateStatus",
+            "Member",
+            id,
+            $"Đổi trạng thái hội viên {memberLabel} sang {statusLabel}",
+            $"MemberId={id}",
+            User,
+            cancellationToken);
+
+        return NoContent();
     }
 
     [HttpDelete("{id:int}")]
@@ -95,15 +139,33 @@ public sealed class MembersController(IMemberService memberService) : Controller
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
+        var existing = await memberService.GetByIdAsync(id, cancellationToken);
         var (deleted, hasRelatedRecords) = await memberService.DeleteAsync(id, cancellationToken);
         if (hasRelatedRecords)
         {
             return Conflict(new ProblemDetails
             {
-                Title = "Không thể xóa hội viên đã có đăng ký gói tập, hóa đơn hoặc lịch sử check-in. Vui lòng chuyển sang Tạm ngừng."
+                Title = "Không thể xóa hội viên đang có gói tập hoạt động hoặc chờ thanh toán. Vui lòng hủy gói tập trước khi xóa."
             });
         }
 
-        return deleted ? NoContent() : NotFound();
+        if (!deleted)
+        {
+            return NotFound();
+        }
+
+        var memberLabel = existing is null
+            ? $"#{id}"
+            : $"{existing.FirstName} {existing.LastName}".Trim() + (string.IsNullOrWhiteSpace(existing.Phone) ? "" : $" ({existing.Phone})");
+        await auditLogService.LogAsync(
+            "Member.Delete",
+            "Member",
+            id,
+            $"Xóa hồ sơ hội viên {memberLabel}",
+            $"MemberId={id}" + (string.IsNullOrWhiteSpace(existing?.Email) ? "" : $" · Email: {existing.Email}"),
+            User,
+            cancellationToken);
+
+        return NoContent();
     }
 }

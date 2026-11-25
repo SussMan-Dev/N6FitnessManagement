@@ -58,7 +58,8 @@ public sealed class MemberService(GymDbContext dbContext) : IMemberService
             var memberSubs = subscriptions.Where(s => s.MemberId == member.Id).ToList();
             var activeSub = memberSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.Active && (s.EndsOn == null || s.EndsOn >= today))
                             ?? memberSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.Active)
-                            ?? memberSubs.FirstOrDefault();
+                            ?? memberSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.PendingPayment)
+                            ?? memberSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.Expired);
 
             string? planName = null;
             DateOnly? endsOn = null;
@@ -74,7 +75,7 @@ public sealed class MemberService(GymDbContext dbContext) : IMemberService
                     planName = plan.Name;
                 }
 
-                if (activeSub.EndsOn.HasValue)
+                if (activeSub.EndsOn.HasValue && activeSub.Status != SubscriptionStatus.Cancelled && activeSub.Status != SubscriptionStatus.PendingPayment)
                 {
                     daysRemaining = activeSub.EndsOn.Value.DayNumber - today.DayNumber;
                 }
@@ -105,11 +106,17 @@ public sealed class MemberService(GymDbContext dbContext) : IMemberService
 
         if (member is null) return null;
 
-        var sub = await dbContext.Subscriptions.AsNoTracking()
+        var memberSubs = await dbContext.Subscriptions.AsNoTracking()
             .Where(s => s.MemberId == id)
             .OrderByDescending(s => s.StartsOn)
             .ThenByDescending(s => s.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+
+        var today = GymClock.TodayVietnam();
+        var sub = memberSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.Active && (s.EndsOn == null || s.EndsOn >= today))
+                  ?? memberSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.Active)
+                  ?? memberSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.PendingPayment)
+                  ?? memberSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.Expired);
 
         string? planName = null;
         DateOnly? endsOn = null;
@@ -123,9 +130,8 @@ public sealed class MemberService(GymDbContext dbContext) : IMemberService
             var plan = await dbContext.MembershipPlans.AsNoTracking()
                 .SingleOrDefaultAsync(p => p.Id == sub.MembershipPlanId, cancellationToken);
             planName = plan?.Name;
-            if (sub.EndsOn.HasValue)
+            if (sub.EndsOn.HasValue && sub.Status != SubscriptionStatus.Cancelled && sub.Status != SubscriptionStatus.PendingPayment)
             {
-                var today = GymClock.TodayVietnam();
                 daysRemaining = sub.EndsOn.Value.DayNumber - today.DayNumber;
             }
         }
@@ -272,13 +278,43 @@ public sealed class MemberService(GymDbContext dbContext) : IMemberService
             return (false, false);
         }
 
-        var hasRelated =
-            await dbContext.Subscriptions.AnyAsync(item => item.MemberId == id, cancellationToken) ||
-            await dbContext.Invoices.AnyAsync(item => item.MemberId == id, cancellationToken) ||
-            await dbContext.CheckIns.AnyAsync(item => item.MemberId == id, cancellationToken);
-        if (hasRelated)
+        var hasBlockingSubscription = await dbContext.Subscriptions.AnyAsync(
+            item => item.MemberId == id && (item.Status == SubscriptionStatus.Active || item.Status == SubscriptionStatus.PendingPayment),
+            cancellationToken);
+        if (hasBlockingSubscription)
         {
             return (false, true);
+        }
+
+        // Clean up historical records in FK-safe order (AuditLogs are kept intact for traceability).
+        var checkIns = await dbContext.CheckIns.Where(item => item.MemberId == id).ToListAsync(cancellationToken);
+        if (checkIns.Count > 0)
+        {
+            dbContext.CheckIns.RemoveRange(checkIns);
+        }
+
+        var invoices = await dbContext.Invoices.Where(item => item.MemberId == id).ToListAsync(cancellationToken);
+        if (invoices.Count > 0)
+        {
+            var invoiceIds = invoices.Select(i => i.Id).ToList();
+            var payments = await dbContext.Payments.Where(p => invoiceIds.Contains(p.InvoiceId)).ToListAsync(cancellationToken);
+            if (payments.Count > 0)
+            {
+                dbContext.Payments.RemoveRange(payments);
+            }
+
+            dbContext.Invoices.RemoveRange(invoices);
+        }
+
+        var subscriptions = await dbContext.Subscriptions.Where(item => item.MemberId == id).ToListAsync(cancellationToken);
+        if (subscriptions.Count > 0)
+        {
+            foreach (var sub in subscriptions)
+            {
+                sub.RenewedFromSubscriptionId = null;
+            }
+            await dbContext.SaveChangesAsync(cancellationToken);
+            dbContext.Subscriptions.RemoveRange(subscriptions);
         }
 
         dbContext.Members.Remove(member);

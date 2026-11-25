@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileText,
   Globe,
+  History,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -26,6 +27,7 @@ import { api, clearSession, getSession, saveSession } from './api';
 import { CommandPalette } from './commandPalette';
 import { ToastProvider } from './toast';
 import {
+  AuditLogsPage,
   CheckInsPage,
   DashboardPage,
   InvoiceDetailPage,
@@ -44,16 +46,38 @@ import {
 } from './portal';
 import './styles.css';
 
-const navigation = [
-  { to: '/', label: 'Tổng quan', icon: LayoutDashboard, end: true },
-  { to: '/members', label: 'Hội viên', icon: Users },
-  { to: '/plans', label: 'Gói tập', icon: BadgeDollarSign },
-  { to: '/subscriptions', label: 'Đăng ký tập', icon: Repeat2 },
-  { to: '/invoices', label: 'Hóa đơn', icon: FileText },
-  { to: '/payments', label: 'Thanh toán', icon: CreditCard },
-  { to: '/checkins', label: 'Check-in', icon: ScanLine },
-  { to: '/trainers', label: 'Huấn luyện viên', icon: Dumbbell },
-  { to: '/reports', label: 'Báo cáo', icon: BarChart3 },
+const navGroups = [
+  {
+    caption: 'VẬN HÀNH',
+    items: [
+      { to: '/', label: 'Tổng quan', icon: LayoutDashboard, end: true },
+      { to: '/checkins', label: 'Check-in', icon: ScanLine },
+      { to: '/subscriptions', label: 'Đăng ký tập', icon: Repeat2 },
+    ],
+  },
+  {
+    caption: 'TÀI CHÍNH',
+    items: [
+      { to: '/invoices', label: 'Hóa đơn', icon: FileText },
+      { to: '/payments', label: 'Thanh toán', icon: CreditCard },
+      { to: '/reports', label: 'Báo cáo', icon: BarChart3 },
+    ],
+  },
+  {
+    caption: 'DANH MỤC',
+    items: [
+      { to: '/members', label: 'Hội viên', icon: Users },
+      { to: '/plans', label: 'Gói tập', icon: BadgeDollarSign },
+      { to: '/trainers', label: 'Huấn luyện viên', icon: Dumbbell },
+    ],
+  },
+  {
+    caption: 'HỆ THỐNG',
+    items: [
+      { to: '/audit-logs', label: 'Lịch sử thao tác', icon: History },
+      { to: '/staff', label: 'Nhân viên', icon: UserRoundCog, adminOnly: true },
+    ],
+  },
 ];
 
 function LoginPage({ onLogin }) {
@@ -147,15 +171,24 @@ function AppShell({ session, onLogout }) {
     <div className="app-shell">
       <aside className={`sidebar ${mobileNavOpen ? 'sidebar-open' : ''}`}>
         <div className="brand sidebar-brand"><span className="brand-mark"><Dumbbell size={20} strokeWidth={2.5} /></span><span>GYM MANAGER<small>CLUB OPERATIONS</small></span></div>
-        <p className="nav-caption">WORKSPACE</p>
-        <nav className="primary-nav" aria-label="Điều hướng chính">
-          {navigation.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} onClick={() => setMobileNavOpen(false)}>
-              <Icon size={18} strokeWidth={1.8} /><span>{label}</span>
-            </NavLink>
-          ))}
-          {isAdmin && <NavLink to="/staff" onClick={() => setMobileNavOpen(false)}><UserRoundCog size={18} strokeWidth={1.8} /><span>Nhân viên</span></NavLink>}
-        </nav>
+        <div className="sidebar-nav-scroll">
+          {navGroups.map(group => {
+            const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin);
+            if (!visibleItems.length) return null;
+            return (
+              <div key={group.caption} className="nav-group">
+                <p className="nav-caption">{group.caption}</p>
+                <nav className="primary-nav" aria-label={group.caption}>
+                  {visibleItems.map(({ to, label, icon: Icon, end }) => (
+                    <NavLink key={to} to={to} end={end} onClick={() => setMobileNavOpen(false)}>
+                      <Icon size={18} strokeWidth={1.8} /><span>{label}</span>
+                    </NavLink>
+                  ))}
+                </nav>
+              </div>
+            );
+          })}
+        </div>
         <div className="sidebar-bottom">
           <Link to="/portal" target="_blank" rel="noreferrer" className="sidebar-portal-link">
             <Globe size={16} /> Cổng khách hàng
@@ -279,6 +312,7 @@ function App() {
           <Route path="payments" element={<PaymentsPage />} />
           <Route path="checkins" element={<CheckInsPage />} />
           <Route path="reports" element={<ReportsPage />} />
+          <Route path="audit-logs" element={<AuditLogsPage />} />
           <Route path="staff" element={session?.roles?.includes('Admin') ? <StaffPage /> : <Navigate to="/" replace />} />
         </Route>
       </Route>

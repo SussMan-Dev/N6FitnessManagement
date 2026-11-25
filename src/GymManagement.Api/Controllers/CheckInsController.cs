@@ -10,7 +10,10 @@ namespace GymManagement.Api.Controllers;
 [ApiController]
 [Authorize(Roles = "Admin,Staff")]
 [Route("api/check-ins")]
-public sealed class CheckInsController(ICheckInService checkInService, IMemberService memberService) : ControllerBase
+public sealed class CheckInsController(
+    ICheckInService checkInService,
+    IMemberService memberService,
+    IAuditLogService auditLogService) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(CheckInResponse), StatusCodes.Status201Created)]
@@ -33,9 +36,18 @@ public sealed class CheckInsController(ICheckInService checkInService, IMemberSe
                 : Conflict(new ProblemDetails { Title = result.Error.ToString() });
         }
 
+        await auditLogService.LogAsync(
+            "CheckIn.Create",
+            "CheckIn",
+            result.CheckIn!.Id,
+            $"Check-in hội viên {result.CheckIn.MemberName ?? $"#{result.CheckIn.MemberId}"}",
+            $"Phương thức: {result.CheckIn.Method}",
+            User,
+            cancellationToken);
+
         return CreatedAtAction(
             nameof(GetByMember),
-            new { memberId = result.CheckIn!.MemberId },
+            new { memberId = result.CheckIn.MemberId },
             result.CheckIn);
     }
 

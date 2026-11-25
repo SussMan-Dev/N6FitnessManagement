@@ -398,11 +398,19 @@ export function ResourcePage({ type }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [version, setVersion] = useState(0);
+  // Cancel subscription modal state for members page
+  const [cancelMember, setCancelMember] = useState(null);
+  const [memberSubs, setMemberSubs] = useState([]);
+  const [planNameMap, setPlanNameMap] = useState(new Map());
+  const [loadingSubs, setLoadingSubs] = useState(false);
+  const [selectedSubId, setSelectedSubId] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancellingSub, setCancellingSub] = useState(false);
   const debouncedSearch = useDebouncedValue(search.trim(), 300);
   const { page, pageSize, setPage, setPageSize } = usePagination(20, [type, debouncedSearch]);
 
   // Same component instance is reused when switching between members/plans/trainers routes.
-  useEffect(() => { setSearch(''); setSuccess(''); }, [type]);
+  useEffect(() => { setSearch(''); setSuccess(''); setCancelMember(null); }, [type]);
 
   useEffect(() => {
     let active = true;
@@ -473,6 +481,60 @@ export function ResourcePage({ type }) {
     }
   }
 
+  async function openMemberCancelModal(member) {
+    setCancelMember(member);
+    setMemberSubs([]);
+    setSelectedSubId('');
+    setCancelReason('');
+    setError('');
+    setLoadingSubs(true);
+    try {
+      const [subRes, planRes] = await Promise.all([
+        api(`/members/${member.id}/subscriptions?page=1&pageSize=50`),
+        api('/membership-plans?includeInactive=true&page=1&pageSize=100'),
+      ]);
+      const plansMap = new Map((planRes.items || []).map(p => [p.id, p.name]));
+      setPlanNameMap(plansMap);
+      const cancellable = (subRes.items || []).filter(s => s.status === 'Active' || s.status === 'PendingPayment');
+      setMemberSubs(cancellable);
+      if (cancellable.length > 0) {
+        setSelectedSubId(String(cancellable[0].id));
+      }
+    } catch (requestError) {
+      toast.error(requestError.message, 'Không thể tải gói tập');
+      setError(requestError.message);
+    } finally {
+      setLoadingSubs(false);
+    }
+  }
+
+  async function handleMemberCancelSubmit(event) {
+    event.preventDefault();
+    if (!selectedSubId || !cancelMember) return;
+    setCancellingSub(true);
+    setError('');
+    setSuccess('');
+    try {
+      await api(`/subscriptions/${selectedSubId}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: cancelReason.trim() || null }),
+      });
+      const memberName = `${cancelMember.firstName || ''} ${cancelMember.lastName || ''}`.trim() || `#${cancelMember.id}`;
+      toast.info(`Đã hủy gói #SUB-${String(selectedSubId).padStart(4, '0')} của hội viên ${memberName}.`, 'Hủy gói tập');
+      setSuccess(`Đã hủy gói #SUB-${String(selectedSubId).padStart(4, '0')} của hội viên ${memberName}.`);
+      setCancelMember(null);
+      setCancelReason('');
+      setVersion(v => v + 1);
+    } catch (requestError) {
+      toast.error(requestError.message, 'Không thể hủy gói tập');
+      setError(requestError.message);
+    } finally {
+      setCancellingSub(false);
+    }
+  }
+
+  const selectedCancelSub = memberSubs.find(s => String(s.id) === String(selectedSubId)) || null;
+
   const columns = canManage
     ? [
         ...config.columns,
@@ -483,6 +545,16 @@ export function ResourcePage({ type }) {
             <div className="table-actions">
               <button className="button button-small button-quiet" onClick={() => { setError(''); setModal({ item }); }} type="button">Sửa</button>
               <button className="button button-small button-outline" onClick={() => toggleStatus(item)} type="button">{config.isActive(item) ? 'Tạm ngừng' : 'Kích hoạt'}</button>
+              {type === 'members' && (item.currentSubscriptionStatus === 'Active' || item.currentSubscriptionStatus === 'PendingPayment') && (
+                <button
+                  className="button button-small button-danger-quiet"
+                  onClick={() => openMemberCancelModal(item)}
+                  type="button"
+                  title="Hủy gói tập đang hoạt động hoặc chờ thanh toán của hội viên này"
+                >
+                  Hủy gói
+                </button>
+              )}
               {canDelete && (
                 <button
                   className="button button-small button-danger-quiet"
@@ -515,6 +587,73 @@ export function ResourcePage({ type }) {
       <Pagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} onPageSizeChange={setPageSize} disabled={loading} />
     </section>
     {modal && <ResourceDialog config={config} initial={modal.item} onClose={() => setModal(null)} onSave={save} saving={saving} error={error} />}
+    {cancelMember && (
+      <Modal
+        title={`Hủy gói tập · ${`${cancelMember.firstName || ''} ${cancelMember.lastName || ''}`.trim() || `#${cancelMember.id}`}`}
+        description="Chọn gói tập cần hủy của hội viên. Gói đang hoạt động sẽ chấm dứt quyền check-in ngay lập tức và được ghi vào Lịch sử thao tác."
+        onClose={() => setCancelMember(null)}
+      >
+        {loadingSubs ? (
+          <LoadingState label="Đang tải danh sách gói tập của hội viên…" />
+        ) : memberSubs.length === 0 ? (
+          <div className="form-stack">
+            <div className="sub-info-notice">
+              <p>Hội viên này hiện không có gói tập nào ở trạng thái <strong>Đang hoạt động</strong> hoặc <strong>Chờ thanh toán</strong> để hủy.</p>
+            </div>
+            <div className="form-actions">
+              <button className="button button-primary" type="button" onClick={() => setCancelMember(null)}>Đóng</button>
+            </div>
+          </div>
+        ) : (
+          <form className="form-stack" onSubmit={handleMemberCancelSubmit}>
+            <label className="field-label">
+              <span className="field-label-text">Chọn gói tập cần hủy <span className="field-req">*</span></span>
+              <select
+                value={selectedSubId}
+                onChange={event => setSelectedSubId(event.target.value)}
+                required
+              >
+                {memberSubs.map(sub => {
+                  const planName = planNameMap.get(sub.membershipPlanId) || `Gói #${sub.membershipPlanId}`;
+                  const statusLabel = sub.status === 'Active' ? 'Đang hoạt động' : 'Chờ thanh toán';
+                  const rangeLabel = sub.endsOn ? ` · Hạn ${formatDate(sub.endsOn)}` : '';
+                  return (
+                    <option key={sub.id} value={sub.id}>
+                      #SUB-{String(sub.id).padStart(4, '0')} · {planName} ({statusLabel}{rangeLabel})
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            {selectedCancelSub?.status === 'Active' && (
+              <div className="sub-warn-box">
+                Gói đang hoạt động sẽ bị hủy ngay và hội viên không thể check-in bằng gói này nữa. Các khoản tiền đã thu trước đó vẫn được giữ nguyên trong lịch sử kế toán.
+              </div>
+            )}
+            <label className="field-label">
+              <span className="field-label-text">
+                Lý do hủy gói {selectedCancelSub?.status === 'Active' && <span className="field-req">*</span>}
+              </span>
+              <textarea
+                rows={3}
+                required={selectedCancelSub?.status === 'Active'}
+                maxLength={500}
+                value={cancelReason}
+                onChange={event => setCancelReason(event.target.value)}
+                placeholder="Ví dụ: Hội viên chuyển công tác, đăng ký nhầm gói, yêu cầu dừng tập…"
+              />
+            </label>
+            <Notice error={error} />
+            <div className="form-actions">
+              <button className="button button-quiet" type="button" onClick={() => setCancelMember(null)}>Đóng</button>
+              <button className="button button-danger" type="submit" disabled={cancellingSub}>
+                {cancellingSub ? 'Đang hủy…' : 'Xác nhận hủy gói'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+    )}
   </>;
 }
 
@@ -676,6 +815,8 @@ export function SubscriptionsPage() {
   const [saving, setSaving] = useState(false);
   const [busySubId, setBusySubId] = useState(null);
   const [lastInvoice, setLastInvoice] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [version, setVersion] = useState(0);
@@ -836,20 +977,30 @@ export function SubscriptionsPage() {
     }
   }
 
-  async function cancelSubscription(subscription) {
-    if (!window.confirm(`Hủy đăng ký #SUB-${String(subscription.id).padStart(4, '0')}?\n\nNếu có hóa đơn chờ thanh toán chưa thu tiền gắn kèm, hóa đơn đó cũng sẽ được hủy.`)) {
-      return;
-    }
-    setBusySubId(subscription.id);
+  function openCancelModal(subscription) {
+    setCancelTarget(subscription);
+    setCancelReason('');
+    setError('');
+  }
+
+  async function submitCancelSubscription(event) {
+    event.preventDefault();
+    if (!cancelTarget) return;
+    setBusySubId(cancelTarget.id);
     setError(''); setSuccess('');
     try {
-      await api(`/subscriptions/${subscription.id}/cancel`, { method: 'POST' });
-      toast.info('Đã hủy đăng ký gói tập.', 'Hủy đăng ký');
-      setSuccess(`Đã hủy đăng ký #SUB-${String(subscription.id).padStart(4, '0')}.`);
+      await api(`/subscriptions/${cancelTarget.id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: cancelReason.trim() || null }),
+      });
+      toast.info(`Đã hủy gói tập #SUB-${String(cancelTarget.id).padStart(4, '0')}.`, 'Hủy gói tập');
+      setSuccess(`Đã hủy gói tập #SUB-${String(cancelTarget.id).padStart(4, '0')}.`);
+      setCancelTarget(null);
+      setCancelReason('');
       setLastInvoice(null);
       setVersion(value => value + 1);
     } catch (requestError) {
-      toast.error(requestError.message, 'Không thể hủy đăng ký');
+      toast.error(requestError.message, 'Không thể hủy gói tập');
       setError(requestError.message);
     } finally {
       setBusySubId(null);
@@ -1194,25 +1345,36 @@ export function SubscriptionsPage() {
                             )}
                             <button
                               className="button button-small button-danger-quiet"
-                              onClick={() => cancelSubscription(item)}
+                              onClick={() => openCancelModal(item)}
                               disabled={busySubId === item.id}
                               type="button"
                               title="Hủy đăng ký chọn nhầm / chưa đóng tiền"
                             >
-                              Hủy đơn
+                              Hủy gói
                             </button>
                           </>
                         )}
                         {item.status === 'Active' && (
-                          <button
-                            className="button button-small button-outline"
-                            onClick={() => freezeSubscription(item)}
-                            disabled={busySubId === item.id}
-                            type="button"
-                            title="Bảo lưu / cộng thêm ngày sử dụng cho hội viên"
-                          >
-                            Bảo lưu
-                          </button>
+                          <>
+                            <button
+                              className="button button-small button-outline"
+                              onClick={() => freezeSubscription(item)}
+                              disabled={busySubId === item.id}
+                              type="button"
+                              title="Bảo lưu / cộng thêm ngày sử dụng cho hội viên"
+                            >
+                              Bảo lưu
+                            </button>
+                            <button
+                              className="button button-small button-danger-quiet"
+                              onClick={() => openCancelModal(item)}
+                              disabled={busySubId === item.id}
+                              type="button"
+                              title="Hủy gói tập đang hoạt động (chấm dứt quyền check-in)"
+                            >
+                              Hủy gói
+                            </button>
+                          </>
                         )}
                         {['Active', 'Expired'].includes(item.status) && (
                           <button
@@ -1249,6 +1411,53 @@ export function SubscriptionsPage() {
         )}
       </section>
     </section>
+
+    {cancelTarget && (
+      <Modal
+        title={`Hủy gói tập #SUB-${String(cancelTarget.id).padStart(4, '0')}`}
+        description={
+          cancelTarget.status === 'Active'
+            ? 'Gói tập đang hoạt động sẽ bị chấm dứt ngay lập tức và hội viên không thể check-in bằng gói này nữa. Hóa đơn chưa thanh toán (nếu có) sẽ được tự động hủy; các khoản đã thu vẫn được giữ nguyên trong lịch sử kế toán.'
+            : 'Đăng ký chờ thanh toán và hóa đơn chưa thu tiền gắn kèm (nếu có) sẽ được hủy.'
+        }
+        onClose={() => setCancelTarget(null)}
+      >
+        <form className="form-stack" onSubmit={submitCancelSubscription}>
+          <div className="sub-warn-box">
+            <strong>{planMap.get(cancelTarget.membershipPlanId)?.name || `Gói #${cancelTarget.membershipPlanId}`}</strong>
+            {' · '}
+            Trạng thái hiện tại: <strong>{cancelTarget.status === 'Active' ? 'Đang hoạt động' : 'Chờ thanh toán'}</strong>
+            {cancelTarget.endsOn ? ` · Hạn đến ${formatDate(cancelTarget.endsOn)}` : ''}
+          </div>
+          <label className="field-label">
+            <span className="field-label-text">
+              Lý do hủy gói {cancelTarget.status === 'Active' && <span className="field-req">*</span>}
+            </span>
+            <textarea
+              name="reason"
+              rows={3}
+              required={cancelTarget.status === 'Active'}
+              maxLength={500}
+              value={cancelReason}
+              onChange={event => setCancelReason(event.target.value)}
+              placeholder="Ví dụ: Hội viên chuyển công tác, đăng ký nhầm gói, yêu cầu dừng tập…"
+            />
+          </label>
+          <div className="form-actions">
+            <button className="button button-quiet" type="button" onClick={() => setCancelTarget(null)}>
+              Đóng
+            </button>
+            <button
+              className="button button-danger"
+              type="submit"
+              disabled={busySubId === cancelTarget.id}
+            >
+              {busySubId === cancelTarget.id ? 'Đang hủy…' : 'Xác nhận hủy gói'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    )}
   </>;
 }
 
@@ -4397,6 +4606,284 @@ export function StaffPage() {
           </form>
         </Modal>
       )}
+    </>
+  );
+}
+
+const AUDIT_ENTITY_LABELS = {
+  Subscription: 'Đăng ký gói tập',
+  Invoice: 'Hóa đơn',
+  Payment: 'Thanh toán',
+  Member: 'Hội viên',
+  MembershipPlan: 'Danh mục gói tập',
+  CheckIn: 'Check-in',
+  User: 'Nhân viên',
+  Auth: 'Phiên đăng nhập',
+};
+
+function getAuditBadgeTone(action = '') {
+  if (action.includes('Cancel') || action.includes('Void') || action.includes('Reject') || action.includes('Delete')) {
+    return 'audit-badge-danger';
+  }
+  if (action.includes('Confirm') || action.includes('Create') || action.includes('Login')) {
+    return 'audit-badge-success';
+  }
+  if (action.includes('Freeze') || action.includes('Renew') || action.includes('Update') || action.includes('Toggle')) {
+    return 'audit-badge-warn';
+  }
+  return 'audit-badge-neutral';
+}
+
+export function AuditLogsPage() {
+  const [items, setItems] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [actors, setActors] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [search, setSearch] = useState('');
+  const [entityType, setEntityType] = useState('');
+  const [actorUserId, setActorUserId] = useState('');
+  const [memberId, setMemberId] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [version, setVersion] = useState(0);
+  const { page, pageSize, setPage, setPageSize } = usePagination(20, [debouncedSearch, entityType, actorUserId, memberId, fromDate, toDate]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      api('/audit-logs/actors'),
+      api('/members?page=1&pageSize=100'),
+    ])
+      .then(([actorList, memberRes]) => {
+        if (active) {
+          setActors(Array.isArray(actorList) ? actorList : []);
+          setMembers(memberRes.items || []);
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    api(`/audit-logs${buildQuery({ page, pageSize, search: debouncedSearch, entityType, actorUserId, memberId, from: fromDate, to: toDate })}`)
+      .then(result => {
+        if (active) {
+          setItems(result.items || []);
+          setTotalCount(result.totalCount || 0);
+          setError('');
+        }
+      })
+      .catch(requestError => { if (active) setError(requestError.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [page, pageSize, debouncedSearch, entityType, actorUserId, memberId, fromDate, toDate, version]);
+
+  const hasFilters = Boolean(search || entityType || actorUserId || memberId || fromDate || toDate);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="SYSTEM AUDIT"
+        title="Lịch Sử Thao Tác"
+        description="Ghi nhận toàn bộ hoạt động quan trọng của nhân viên: đăng ký/hủy gói tập, lập & hủy hóa đơn, thu tiền, check-in và thay đổi tài khoản."
+        action={
+          <button className="button button-outline" type="button" onClick={() => setVersion(v => v + 1)}>
+            <RefreshCw size={15} /> Làm mới
+          </button>
+        }
+      />
+
+      <Notice error={error} />
+
+      <section className="table-panel">
+        <div className="table-toolbar inv-toolbar">
+          <div>
+            <strong>{totalCount}</strong>
+            <span> bản ghi thao tác{hasFilters ? ' phù hợp' : ''}</span>
+          </div>
+          <div className="inv-filters-row">
+            <div className="search-input-wrap" style={{ margin: 0 }}>
+              <Search size={14} className="input-search-icon" />
+              <input
+                type="text"
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Tìm nội dung, lý do, nhân viên…"
+                className="sub-member-search-input inv-search-input"
+              />
+            </div>
+
+            <div className="inv-date-range">
+              <input
+                type="date"
+                value={fromDate}
+                onChange={event => setFromDate(event.target.value)}
+                title="Từ ngày"
+                aria-label="Từ ngày"
+                className="inv-date-input"
+              />
+              <span className="muted">→</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={event => setToDate(event.target.value)}
+                title="Đến ngày"
+                aria-label="Đến ngày"
+                className="inv-date-input"
+              />
+              {(fromDate || toDate) && (
+                <button
+                  type="button"
+                  className="button button-small button-quiet"
+                  onClick={() => { setFromDate(''); setToDate(''); }}
+                  title="Xóa lọc ngày"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            <select
+              className="filter-select"
+              value={actorUserId}
+              onChange={event => setActorUserId(event.target.value)}
+              aria-label="Lọc theo nhân viên"
+            >
+              <option value="">Tất cả nhân viên</option>
+              {actors.map(actor => (
+                <option key={actor.id} value={actor.id}>
+                  {actor.name}{actor.email && actor.email !== actor.name ? ` (${actor.email})` : ''}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="filter-select"
+              value={memberId}
+              onChange={event => setMemberId(event.target.value)}
+              aria-label="Lọc theo thành viên"
+            >
+              <option value="">Tất cả thành viên</option>
+              {members.map(m => (
+                <option key={m.id} value={m.id}>
+                  {`${m.firstName || ''} ${m.lastName || ''}`.trim() || `#${m.id}`}{m.phone ? ` · ${m.phone}` : ''}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="filter-select"
+              value={entityType}
+              onChange={event => setEntityType(event.target.value)}
+              aria-label="Lọc theo phân hệ"
+            >
+              <option value="">Tất cả phân hệ</option>
+              {Object.entries(AUDIT_ENTITY_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+
+            {hasFilters && (
+              <button
+                type="button"
+                className="button button-quiet button-small"
+                onClick={() => {
+                  setSearch('');
+                  setEntityType('');
+                  setActorUserId('');
+                  setMemberId('');
+                  setFromDate('');
+                  setToDate('');
+                }}
+              >
+                <X size={14} /> Xóa lọc
+              </button>
+            )}
+          </div>
+        </div>
+
+        <TableFrame
+          loading={loading}
+          rows={items}
+          emptyTitle={hasFilters ? 'Không tìm thấy lịch sử phù hợp' : 'Chưa có lịch sử thao tác nào'}
+          emptyDescription="Mọi thao tác phát sinh từ lúc này (hủy gói, thu tiền, check-in, tạo/sửa dữ liệu…) sẽ được ghi nhận tự động tại đây."
+          columns={[
+            {
+              key: 'createdAtUtc',
+              label: 'Thời gian',
+              render: item => (
+                <div>
+                  <strong>
+                    {new Intl.DateTimeFormat('vi-VN', {
+                      dateStyle: 'short',
+                      timeStyle: 'medium',
+                      timeZone: 'Asia/Ho_Chi_Minh',
+                    }).format(new Date(item.createdAtUtc))}
+                  </strong>
+                  <small className="table-subline">LOG-{String(item.id).padStart(5, '0')}</small>
+                </div>
+              ),
+            },
+            {
+              key: 'actorName',
+              label: 'Người thực hiện',
+              render: item => (
+                <div>
+                  <strong>{item.actorName}</strong>
+                  {item.actorEmail && item.actorEmail !== item.actorName && (
+                    <small className="table-subline">{item.actorEmail}</small>
+                  )}
+                </div>
+              ),
+            },
+            {
+              key: 'action',
+              label: 'Phân hệ / Hành động',
+              render: item => (
+                <div>
+                  <span className={`audit-badge ${getAuditBadgeTone(item.action)}`}>{item.action}</span>
+                  <small className="table-subline">
+                    {AUDIT_ENTITY_LABELS[item.entityType] || item.entityType}
+                    {item.entityId ? ` #${item.entityId}` : ''}
+                  </small>
+                </div>
+              ),
+            },
+            {
+              key: 'summary',
+              label: 'Nội dung thao tác',
+              render: item => (
+                <div>
+                  {item.entityType === 'Invoice' && item.entityId ? (
+                    <Link to={`/invoices/${item.entityId}`} className="inv-number-link">
+                      <strong>{item.summary}</strong>
+                    </Link>
+                  ) : (
+                    <strong>{item.summary}</strong>
+                  )}
+                  {item.details && <small className="table-subline">{item.details}</small>}
+                </div>
+              ),
+            },
+          ]}
+        />
+
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[10, 20, 50, 100]}
+          disabled={loading}
+          unit="bản ghi"
+        />
+      </section>
     </>
   );
 }
